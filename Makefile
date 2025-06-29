@@ -43,10 +43,18 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 		git clone -b v1.2.4 --depth 1 git://git.musl-libc.org/musl l2e_boot/musl; \
 	fi
 	
-	# Clone toybox for basic utilities
-	@if [ ! -d "l2e_boot/toybox" ]; then \
-		echo "Cloning toybox 0.8.10 sources..."; \
-		git clone -b 0.8.10 --depth 1 https://github.com/landley/toybox.git l2e_boot/toybox; \
+	# Clone busybox for basic utilities
+	@if [ ! -d "l2e_boot/busybox" ]; then \
+		echo "Cloning busybox 1.37.0 sources..."; \
+		git clone --depth 1 -b 1_37_0 git://busybox.net/busybox.git l2e_boot/busybox; \
+	fi
+	
+	# Build busybox
+	@if [ ! -f "l2e_boot/linux/l2e/busybox" ]; then \
+		cd l2e_boot/busybox && \
+		cp ../l2e_sources/L2E.busybox.config .config && \
+		make -j$$(nproc) CC=../musl_build/bin/musl-gcc CFLAGS="-static" && \
+		cp busybox ../linux/l2e/; \
 	fi
 	
 	# Clone limine bootloader
@@ -113,7 +121,7 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 		cp bin/limine-uefi-cd.bin ../ISO/ && \
 		cp bin/BOOTX64.EFI ../ISO/EFI/BOOT/; \
 	fi
-	
+
 	# Build l2e userspace binaries BEFORE kernel build
 	cd l2e_boot/linux/l2e && make l2e_bin_cc
 
@@ -161,7 +169,7 @@ distclean: clean ##		- Deep clean (remove downloaded sources)
 	rm -rf l2e_boot/musl
 	rm -rf l2e_boot/musl_build
 	rm -rf l2e_boot/kernel_headers
-	rm -rf l2e_boot/toybox
+	rm -rf l2e_boot/busybox
 	rm -rf l2e_boot/limine
 	rm -rf l2e_boot/ISO
 
