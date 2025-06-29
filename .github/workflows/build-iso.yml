@@ -1,0 +1,78 @@
+name: Build and Release μInference ISO
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-iso:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          gcc \
+          make \
+          wget \
+          git \
+          xorriso \
+          curl \
+          tar \
+          flex \
+          bison \
+          bc \
+          libelf-dev \
+          libssl-dev \
+          cpio \
+          rsync
+
+    - name: Build μInference ISO
+      run: make iso
+
+    - name: Generate release tag
+      id: tag
+      run: echo "tag=v$(date +'%Y%m%d-%H%M%S')-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.tag.outputs.tag }}
+        release_name: μInference ISO ${{ steps.tag.outputs.tag }}
+        body: |
+          Automated release of μInference bootable ISO
+          
+          **Commit:** ${{ github.sha }}
+          **Branch:** ${{ github.ref_name }}
+          
+          This ISO contains:
+          - Linux kernel v6.5 with L2E module
+          - llama2.c inference engine
+          - stories15M model (15M parameters)
+          - Minimal userspace with musl libc and toybox
+          
+          **Usage:**
+          - Boot in a VM (VirtualBox, VMware, QEMU) with at least 512MB RAM
+          - Or burn to USB and boot on x86_64 hardware
+          
+          The system boots directly into a LLaMA inference environment.
+        draft: false
+        prerelease: false
+
+    - name: Upload ISO to Release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./l2e_boot/muinference.iso
+        asset_name: muinference-${{ steps.tag.outputs.tag }}.iso
+        asset_content_type: application/x-iso9660-image
