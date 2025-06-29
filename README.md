@@ -17,12 +17,21 @@ Research platform for micro inference server for SL5
 ## Prerequisites
 
 ### Linux / WSL2
-- Git
-- GCC/Make
-- wget/curl
-- xorriso
-- flex, bison, bc
-- libelf-dev, libssl-dev
+
+Install all required dependencies with one command:
+
+#### Ubuntu/Debian/WSL2:
+```bash
+sudo apt update && sudo apt install -y \
+    build-essential gcc g++ make git wget curl \
+    xorriso mtools dosfstools \
+    flex bison bc kmod cpio \
+    libelf-dev libssl-dev \
+    libncurses-dev \
+    qemu-system-x86 \
+    lld \
+    nasm 
+```
 
 ### Windows 11
 Install WSL2 and Ubuntu:
@@ -31,12 +40,7 @@ Install WSL2 and Ubuntu:
 wsl --install
 ```
 
-Then install dependencies in WSL2:
-```bash
-sudo apt update
-sudo apt install -y build-essential gcc make git wget curl xorriso \
-    flex bison bc libelf-dev libssl-dev qemu-system-x86 mtools
-```
+Then install dependencies in WSL2 using the Ubuntu command above.
 
 ## Quick Start
 
@@ -128,6 +132,9 @@ The included GitHub Action automatically builds and releases the ISO on every pu
 - ISO size: ~500MB (including kernel and model)
 
 ## Troubleshooting
+
+### Build fails on "mtools not found"
+Install mtools: `sudo apt install mtools`
 
 ### Build fails on "xorriso not found"
 Install xorriso: `sudo apt install xorriso`

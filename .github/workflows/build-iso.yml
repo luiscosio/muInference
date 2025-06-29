@@ -18,20 +18,26 @@ jobs:
         sudo apt-get install -y \
           build-essential \
           gcc \
+          g++ \
           make \
           wget \
           git \
           xorriso \
+          mtools \
+          dosfstools \
           curl \
           tar \
           flex \
           bison \
           bc \
+          kmod \
           libelf-dev \
           libssl-dev \
+          libncurses-dev \
           cpio \
           rsync \
-          mtools
+          lld \
+          nasm
 
     - name: Build μInference ISO
       run: make iso
