@@ -33,9 +33,5 @@ file /bin/toybox l2e/toybox 755 0 0
 file /bin/busybox l2e/busybox 755 0 0
 file /l2eterm l2e/l2eterm 755 0 0
 file /tmp/LAIRS.png l2e/LAIRS.png 755 0 0
-file /.fsociety/astsu l2e/fbdoom 755 0 0
-file /.fsociety/fsociety00.dat l2e/freedm.wad 755 0 0
-file /.fsociety/fsociety01.dat l2e/freedoom1.wad 755 0 0
-file /.fsociety/fsociety02.dat l2e/freedoom2.wad 755 0 0
 file /.fsociety/readme.txt l2e/readme.txt 755 0 0
 file /.fsociety/shellcode.sh l2e/shellcode.sh 755 0 0
