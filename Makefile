@@ -115,7 +115,7 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 	fi
 	
 	# Build kernel
-	cd l2e_boot/linux && make -j$$(nproc) LOCALVERSION="-μInference"
+	cd l2e_boot/linux && make V=1 -j1 LOCALVERSION="-μInference"
 	cp l2e_boot/linux/arch/x86/boot/bzImage l2e_boot/ISO/L2E_Exec
 
 .PHONY: l2e_os_iso
