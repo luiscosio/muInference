@@ -70,6 +70,11 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 	cp $(LLAMA2C_DIR)/stories15M.bin l2e_boot/linux/l2e/llama2c/
 	cp $(LLAMA2C_DIR)/tokenizer.bin l2e_boot/linux/l2e/llama2c/
 	
+	# Copy source and create symlinks for the kernel module build
+	cp $(LLAMA2C_DIR)/run.c l2e_boot/linux/l2e/
+	cp $(LLAMA2C_DIR)/stories15M.bin l2e_boot/linux/l2e/model.bin
+	cp $(LLAMA2C_DIR)/tokenizer.bin l2e_boot/linux/l2e/tokenizer.bin
+
 	# Build musl
 	@if [ ! -d "l2e_boot/musl_build" ]; then \
 		cd l2e_boot/musl && \
