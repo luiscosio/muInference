@@ -55,7 +55,7 @@ l2e_bin_clang:
 # Clean
 .PHONY: clean
 clean:
-	rm -f l2e_bin init toybox busybox l2eterm fbdoom *.wad ../drivers/misc/l2e_os/*.o ../drivers/misc/l2e_os/*.a ../drivers/misc/l2e_os/l2e_bin
+	rm -f l2e_bin init toybox busybox *.wad ../drivers/misc/l2e_os/*.o ../drivers/misc/l2e_os/*.a ../drivers/misc/l2e_os/l2e_bin
 	find . -name '*~'
 	find . -name '*~' -delete
 

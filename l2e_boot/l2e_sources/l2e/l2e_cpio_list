@@ -31,7 +31,5 @@ file /l2e l2e/l2e_bin 755 0 0
 file /init l2e/init 755 0 0
 file /bin/toybox l2e/toybox 755 0 0
 file /bin/busybox l2e/busybox 755 0 0
-file /l2eterm l2e/l2eterm 755 0 0
-file /tmp/LAIRS.png l2e/LAIRS.png 755 0 0
 file /.fsociety/readme.txt l2e/readme.txt 755 0 0
 file /.fsociety/shellcode.sh l2e/shellcode.sh 755 0 0
