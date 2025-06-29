@@ -30,7 +30,8 @@ jobs:
           libelf-dev \
           libssl-dev \
           cpio \
-          rsync
+          rsync \
+          mtools
 
     - name: Build μInference ISO
       run: make iso

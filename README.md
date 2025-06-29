@@ -35,7 +35,7 @@ Then install dependencies in WSL2:
 ```bash
 sudo apt update
 sudo apt install -y build-essential gcc make git wget curl xorriso \
-    flex bison bc libelf-dev libssl-dev qemu-system-x86
+    flex bison bc libelf-dev libssl-dev qemu-system-x86 mtools
 ```
 
 ## Quick Start
