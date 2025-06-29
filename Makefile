@@ -114,6 +114,9 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 		cp bin/BOOTX64.EFI ../ISO/EFI/BOOT/; \
 	fi
 	
+	# Build l2e userspace binaries BEFORE kernel build
+	cd l2e_boot/linux/l2e && make l2e_bin_cc
+
 	# Build kernel
 	cd l2e_boot/linux && make V=1 -j1 LOCALVERSION="-μInference"
 	cp l2e_boot/linux/arch/x86/boot/bzImage l2e_boot/ISO/L2E_Exec
