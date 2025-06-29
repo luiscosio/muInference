@@ -102,6 +102,7 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 		make -j$$(nproc) && \
 		rm -rf ../ISO && \
 		cp -R ../l2e_sources/ISO ../ && \
+		mkdir -p ../ISO/EFI/BOOT && \
 		cp bin/limine-bios-cd.bin ../ISO/ && \
 		cp bin/limine-bios.sys ../ISO/ && \
 		cp bin/limine-uefi-cd.bin ../ISO/ && \
