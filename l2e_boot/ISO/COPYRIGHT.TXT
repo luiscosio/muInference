@@ -1,0 +1,2 @@
+Copyright (C) 2024 μInference Project Contributors
+Licensed under MIT License - see LICENSE file for details
