@@ -5,6 +5,14 @@ LLAMA2C_REPO = https://github.com/karpathy/llama2.c
 LLAMA2C_DIR = llama2c
 MODEL_URL = https://huggingface.co/karpathy/tinyllamas/resolve/main/stories15M.bin
 
+# Build configuration (can be overridden: make VERBOSE=1 JOBS=1)
+VERBOSE ?= 0
+JOBS ?= $(shell nproc)
+KERNEL_MAKE_FLAGS = -j$(JOBS) LOCALVERSION="-μInference"
+ifneq ($(VERBOSE),0)
+    KERNEL_MAKE_FLAGS += V=1
+endif
+
 # Default target
 .DEFAULT_GOAL = help
 
@@ -21,8 +29,8 @@ build_llama2c: ##		- Clone and build llama2.c
 		echo "Cloning llama2.c repository..."; \
 		git clone --depth 1 $(LLAMA2C_REPO) $(LLAMA2C_DIR); \
 	fi
-	@echo "Building llama2.c..."
-	cd $(LLAMA2C_DIR) && make runfast
+	@echo "Building llama2.c with $(JOBS) jobs..."
+	cd $(LLAMA2C_DIR) && make -j$(JOBS) runfast
 	@echo "Downloading model..."
 	cd $(LLAMA2C_DIR) && \
 		if [ ! -f "stories15M.bin" ]; then \
@@ -45,9 +53,10 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 	
 	# Build musl FIRST (before busybox needs it)
 	@if [ ! -d "l2e_boot/musl_build" ]; then \
+		echo "Building musl libc with $(JOBS) jobs..."; \
 		cd l2e_boot/musl && \
 		./configure --disable-shared --prefix=../musl_build --syslibdir=../musl_build/lib && \
-		make -j$$(nproc) && \
+		make -j$(JOBS) && \
 		make install && \
 		cd ../musl_build && \
 		sed -i "s@../musl_build@$$(pwd)@g" bin/musl-gcc && \
@@ -84,9 +93,10 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 	
 	# Build busybox (now musl-gcc is available and l2e directory exists)
 	@if [ ! -f "l2e_boot/linux/l2e/busybox" ]; then \
+		echo "Building busybox with $(JOBS) jobs..."; \
 		cd l2e_boot/busybox && \
 		cp ../l2e_sources/L2E.busybox.config .config && \
-		make -j$$(nproc) CC=../musl_build/bin/musl-gcc CFLAGS="-static" && \
+		make -j$(JOBS) CC=../musl_build/bin/musl-gcc CFLAGS="-static" && \
 		cp busybox ../linux/l2e/; \
 	fi
 	
@@ -112,9 +122,10 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 	
 	# Build limine
 	@if [ ! -d "l2e_boot/limine/bin" ]; then \
+		echo "Building limine bootloader with $(JOBS) jobs..."; \
 		cd l2e_boot/limine && \
 		./configure --enable-bios-cd --enable-bios --enable-uefi-x86-64 --enable-uefi-cd && \
-		make -j$$(nproc) && \
+		make -j$(JOBS) && \
 		rm -rf ../ISO && \
 		cp -R ../l2e_sources/ISO ../ && \
 		mkdir -p ../ISO/EFI/BOOT && \
@@ -132,8 +143,8 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 
 	# Build kernel (only if not already built)
 	@if [ ! -f "l2e_boot/linux/arch/x86/boot/bzImage" ]; then \
-		echo "Building Linux kernel..."; \
-		cd l2e_boot/linux && make V=1 -j1 LOCALVERSION="-μInference"; \
+		echo "Building Linux kernel with $(JOBS) jobs..."; \
+		cd l2e_boot/linux && make $(KERNEL_MAKE_FLAGS); \
 	fi
 	@if [ ! -d "l2e_boot/ISO" ]; then \
 		echo "Error: ISO directory not found! Limine build may have failed."; \
@@ -172,6 +183,14 @@ force-rebuild: ##		- Force rebuild kernel and userspace
 	@rm -f l2e_boot/linux/l2e/l2e_bin
 	@$(MAKE) l2e_os
 
+.PHONY: debug-build
+debug-build: ##		- Build with verbose output and single-threaded
+	@$(MAKE) VERBOSE=1 JOBS=1 l2e_os
+
+.PHONY: fast-build
+fast-build: ##		- Build with maximum parallelization
+	@$(MAKE) JOBS=$$(nproc) l2e_os
+
 ##@ Cleanup
 
 .PHONY: clean
@@ -199,3 +218,13 @@ distclean: clean ##		- Deep clean (remove downloaded sources)
 .PHONY: help
 help: ##		- Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+	@echo ""
+	@echo "Build Configuration Variables:"
+	@echo "  VERBOSE=1     Enable verbose build output (default: 0)"
+	@echo "  JOBS=N        Set number of parallel jobs (default: nproc)"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make iso                    # Normal build"
+	@echo "  make VERBOSE=1 iso          # Verbose build"
+	@echo "  make JOBS=4 iso             # Use 4 parallel jobs"
+	@echo "  make debug-build            # Single-threaded verbose build"
