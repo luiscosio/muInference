@@ -5,3 +5,4 @@ l2e_boot/musl/
 l2e_boot/musl_build/
 l2e_boot/busybox/
 l2e_boot/kernel_headers/
+l2e_boot/ISO/
