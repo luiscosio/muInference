@@ -35,10 +35,14 @@ make boot_iso
 
 ## Usage
 
-Once booted:
-- Run inference: `/l2e`
-- Check kernel module: `dmesg | grep l2e`
-- Exit QEMU: `Ctrl-A` then `X`
+Once booted, you can interact with the LLaMA model using the `talk` command:
+
+```bash
+# Ask a question
+talk "What is the meaning of life?"
+
+# Tell a story
+talk "Tell me a story about a robot"
 
 ## Build Options
 
