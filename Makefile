@@ -74,19 +74,19 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 		cp busybox ../linux/l2e/; \
 	fi
 	
+	# Copy L2E sources to kernel FIRST (so directories exist)
+	cp -R l2e_boot/l2e_sources/l2e l2e_boot/linux/
+	cp -R l2e_boot/l2e_sources/l2e_os l2e_boot/linux/drivers/misc/
+	cp l2e_boot/l2e_sources/Kconfig l2e_boot/linux/drivers/misc/
+	cp l2e_boot/l2e_sources/Makefile l2e_boot/linux/drivers/misc/
+	cp l2e_boot/l2e_sources/L2E.gcc.config l2e_boot/linux/.config
+	
 	# Clone limine bootloader
 	@if [ ! -d "l2e_boot/limine" ]; then \
 		echo "Downloading limine bootloader..."; \
 		mkdir -p l2e_boot/limine; \
 		curl -L https://github.com/limine-bootloader/limine/releases/download/v5.20230830.0/limine-5.20230830.0.tar.xz | tar -xJf - -C l2e_boot/limine --strip-components 1; \
 	fi
-	
-	# Copy L2E sources to kernel
-	cp -R l2e_boot/l2e_sources/l2e l2e_boot/linux/
-	cp -R l2e_boot/l2e_sources/l2e_os l2e_boot/linux/drivers/misc/
-	cp l2e_boot/l2e_sources/Kconfig l2e_boot/linux/drivers/misc/
-	cp l2e_boot/l2e_sources/Makefile l2e_boot/linux/drivers/misc/
-	cp l2e_boot/l2e_sources/L2E.gcc.config l2e_boot/linux/.config
 	
 	# Copy llama2.c files to kernel
 	mkdir -p l2e_boot/linux/l2e/llama2c
