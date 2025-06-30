@@ -42,7 +42,7 @@ jobs:
           nasm
 
     - name: Cache build dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           llama2c
@@ -82,7 +82,7 @@ jobs:
           - Linux kernel v6.5 with L2E module
           - llama2.c inference engine
           - stories15M model (15M parameters)
-          - Minimal userspace with musl libc and toybox
+          - Minimal userspace with musl libc and busybox
           
           **Usage:**
           - Boot in a VM (VirtualBox, VMware, QEMU) with at least 512MB RAM

@@ -105,7 +105,7 @@ make distclean     # Remove all downloaded sources
 │   └── L2E Module (inference integration)
 ├── Userspace
 │   ├── musl libc (minimal C library)
-│   ├── toybox (basic utilities)
+│   ├── busybox (basic utilities)
 │   └── llama2.c
 │       ├── run (inference engine)
 │       └── stories15M.bin (model)
@@ -157,7 +157,7 @@ Components under their respective licenses:
 - Linux kernel: GPL v2
 - llama2.c: MIT
 - musl libc: MIT
-- toybox: 0BSD
+- busybox: GPL
 
 ## Acknowledgments
 
