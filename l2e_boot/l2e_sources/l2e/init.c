@@ -20,29 +20,14 @@
 // PRINT LOGO TEXT
 static char *infotext =
     "\n"
-    "           ..**********************************************..         \n"
-    "       .*%%%%%%*******************************************%%%%%*.     \n"
-    "     .*%%%*.                                                .*%%%*.   \n"
-    "    .%%%*.   *%%% %%%%%%%%%%%%%%%%%%%%%%%%%*  *%%%%%%%%%%%*    *%%%*  \n"
-    "   .%%%.     %%%%  *%%%%%%%%%%%%%%%%%%%%%%%% *%%%%%%%%%%%%%.    .%%%. \n"
-    "   %%%*      %%%%                       %%%%                     *%%% \n"
-    "  .%%%.      %%%%            ******%%%%%%%%% %%%%%%%%%%%%%*.     .%%%.\n"
-    "  .%%%.      %%%%            %%%%%%%%%****** %%%%%%%%%%%***.     .%%%.\n"
-    "   %%%*      %%%%*           %%%%                                *%%% \n"
-    "   .%%%*.    %%%%%%%%%%%%%%  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%.    .%%%. \n"
-    "    .%%%*    *%%%%%%%%%%%%*  *%%%%%%%%%%%%%%%%%%%%%%%%%%%%*   .*%%%.  \n"
-    "     .*%%%*.                                                .*%%%*.   \n"
-    "       .*%%%%%%*******************************************%%%%%*.     \n"
-    "           ..**********************************************..         \n"
+    "    _   _  ___        __                              \n"
+    "   | | | ||_ _|_ __  / _| ___ _ __ ___ _ __   ___ ___ \n"
+    "   | |_| | | || '_ \\| |_ / _ \\ '__/ _ \\ '_ \\ / __/ _ \\\n"
+    "   |  _  | | || | | |  _|  __/ | |  __/ | | | (_|  __/\n"
+    "   |_| |_||___|_| |_|_|  \\___|_|  \\___|_| |_|\\___\\___|\n"
     "\n"
-    "             so much depends            glazed with rain              \n"
-    "             upon                       water                         \n"
-    "\n"
-    "             a red wheel                beside the white              \n"
-    "             barrow                     chickens                      \n"
-    "\n"
-    "  *** The Red Wheelbarrow Init - L2E OS v0.1 \"TEMPLE DOS\"             \n"
-    "  *** (c) 2023 Vulcan Ignis                                           \n"
+    "   Minimal Inference Server for Edge Deployment\n"
+    "   LLaMA Model: stories15M (15M parameters)\n"
     "\n";
 
 /* START RAINBOWCOLORS*/
@@ -193,8 +178,7 @@ int rainbow(double hf, double vf, int fc, int fl, int rd, int tc, int cs,
     putwchar(c);
     /* implies "colors" */
     if (escape_state == 2)
-      wprintf(L"\033[38;5;%hhum",
-              codes[(rand_offset + start_color + cc) % ARRAY_SIZE(codes)]);
+      wprintf(L"\033[0m");
   }
 
   if (colors) {
@@ -222,14 +206,7 @@ int main() {
   int status;
   if (getpid() != 1) {
     rainbowprint(infotext);
-    fprintf(stderr, "  *******************************************\n"
-                    "  ***   Guru Meditation >>> ERROR 01 <<<  ***\n"
-                    "  ***   Not PID 1. You are not special!   ***\n"
-                    "  *******************************************\n");
-    rainbowprint("  ***  Reference >>> ");
-    printf("%ld", sys_info.uptime %60);
-    rainbowprint("s <<< into boot... ***\n");   
-    rainbowprint("  *******************************************\n");                 
+    fprintf(stderr, "  *** ERROR: Not PID 1. This must be run as init.\n");
     return 1;
   }
 
@@ -242,33 +219,26 @@ int main() {
   setsid();
   setpgid(0, 0);
 
-  //char *argv[] = {"/bin/sh", NULL};
-  char *argv[] = {"/bin/busybox", "setsid", "-c", "/bin/busybox", "ash", NULL};
+  char *argv[] = {"/bin/busybox", "ash", NULL};
   char *envp[] = {"HOME=/root/", "TERM=linux", "PATH=/:/bin", "TZ=UTC0", "USER=root",
-  		  "LOGNAME=[l2e_init]", "PS1=TEMPLE DOS #| ", NULL};
+  		  "LOGNAME=[init]", "PS1=\\033[1;32mμInference\\033[0m # ", NULL};
 
   pid_t child;
   
   char *createuserspace[] = {"/bin/busybox", "--install", "-s", "/bin", NULL};
-  char *mountrun[] = {"/bin/mount", "/run", NULL};
-  char *mountdev[] = {"/bin/busybox", "mount", "devtmpfs", "-t", "devtmpfs", "-o", "mode=0755,nosuid", "/dev", NULL};
   char *mountproc[] = {"/bin/busybox", "mount", "proc", "-t", "proc", "-o", "nosuid,noexec,nodev", "/proc", NULL};
   char *mountsys[] = {"/bin/busybox", "mount", "sysfs", "-t", "sysfs", "-o", "nosuid,noexec,nodev", "/sys", NULL};
 
   int childstatus;
 
-  rainbowprint("  *** Info: Kernel bro handed the castle to me...\n");
-  rainbowprint("  *** Action: Transcending boot...\n");
-  rainbowprint("  *** Info: The Guru awakened...\n");
+  rainbowprint("  *** μInference Init System Starting...\n");
 
   // USERSPACE CREATION
-  rainbowprint("  *** Info: Create Userspace\n");
   child = fork();
   if (child == -1) {
     fprintf(stderr, "  *** Userspace creation failed! ***\n");
   }
   if (child == 0) {
-    rainbowprint("  *** Action: Create Userspace...\n");
     if (execve(createuserspace[0], createuserspace, envp)) {
       fprintf(stderr, "  *** Userspace creation failed! ***\n");
       return (-1);
@@ -280,7 +250,6 @@ int main() {
     fprintf(stderr, "  *** Mounting failed! ***\n");
   }
   if (child == 0) {
-    rainbowprint("  *** Action: Mounting procfs\n");
     if (execve(mountproc[0], mountproc, envp)) {
       fprintf(stderr, "  *** Mounting procfs failed! ***\n");
       return (-1);
@@ -292,7 +261,6 @@ int main() {
     fprintf(stderr, "  *** Mounting failed! ***\n");
   }
   if (child == 0) {
-    rainbowprint("  *** Action: Mounting sysfs\n");
     if (execve(mountsys[0], mountsys, envp)) {
       fprintf(stderr, "  *** Mounting sysfs failed! ***\n");
       return (-1);
@@ -303,30 +271,28 @@ int main() {
     while ((child = wait(&childstatus)) > 0)
       ;
     if (childstatus == 0) {
-      rainbowprint("  *** Success: All actions succeeded!\n");
+      rainbowprint("  *** System initialization complete!\n");
     } else {
-      fprintf(stderr, "  *** Actions failed! ***\n");
-      // return (childstatus);
+      fprintf(stderr, "  *** Some actions failed! ***\n");
     }
   }
 
   // BOOT INFO
   rainbowprint(infotext);
-  rainbowprint("  *** Booted in >>> ");
+  rainbowprint("  *** Boot completed in ");
   printf("%ld", sys_info.uptime % 60);
-  rainbowprint(" <<< seconds ***\n");
-  rainbowprint("  *** Note: Trancended Boot. Dropping to Temple DOS Shell...\n");
-  rainbowprint("  *** Info: Load High Speed Stopwatch CLI by typing l2e\n");
-  rainbowprint("  *** Info: Load LAIRS After Egypt GUI by typing l2eterm\n");
-  rainbowprint("  *** Note: We are not auto loading l2e/l2eterm as we are auto\n");
-  rainbowprint("  ***       killing the l2e process started by kernel module\n");  
-  rainbowprint("  ***       See module status with \"astu call_trans_opt\" \n");  
-  rainbowprint("  *** Info: CTRL+F & CTRL+G get's you out if in qemu...\n\n");
+  rainbowprint(" seconds\n\n");
+  rainbowprint("  === USAGE INSTRUCTIONS ===\n");
+  rainbowprint("  * Run LLaMA inference:     /l2e\n");
+  rainbowprint("  * View kernel messages:    dmesg\n");
+  rainbowprint("  * Check kernel module:     dmesg | grep T25\n");
+  rainbowprint("  * Stop kernel module:      killall l2e\n");
+  rainbowprint("  * Exit QEMU:              Ctrl-A then X\n");
+  rainbowprint("\n");
   
   // HAND OFF
   if (execve(argv[0], &argv[0], envp) == -1) {
-    fprintf(stderr, "  *** IF YOU ARE SEEING THIS, SOMETHING IS AWRY ***\n");
-    fprintf(stderr, "  *** GURU MEDITATION! YOGA MAT ON FIRE! GURU DEMOTED TO FAKIR... BED OF NAILS TOO HOT... PANIC! DRAMA! ***\n");
+    fprintf(stderr, "  *** CRITICAL: Init handoff failed! ***\n");
     return 1;
   }
 }
