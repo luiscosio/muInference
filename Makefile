@@ -74,7 +74,9 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 		cp busybox ../linux/l2e/; \
 	fi
 	
-	# Copy L2E sources to kernel FIRST (so directories exist)
+	# Copy L2E sources to kernel
+	mkdir -p l2e_boot/linux/l2e
+	mkdir -p l2e_boot/linux/drivers/misc
 	cp -R l2e_boot/l2e_sources/l2e l2e_boot/linux/
 	cp -R l2e_boot/l2e_sources/l2e_os l2e_boot/linux/drivers/misc/
 	cp l2e_boot/l2e_sources/Kconfig l2e_boot/linux/drivers/misc/
