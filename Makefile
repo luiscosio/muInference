@@ -43,13 +43,7 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 		git clone -b v1.2.4 --depth 1 git://git.musl-libc.org/musl l2e_boot/musl; \
 	fi
 	
-	# Clone busybox for basic utilities
-	@if [ ! -d "l2e_boot/busybox" ]; then \
-		echo "Cloning busybox 1.37.0 sources..."; \
-		git clone --depth 1 -b 1_37_0 git://busybox.net/busybox.git l2e_boot/busybox; \
-	fi
-	
-	# Build musl
+	# Build musl FIRST (before busybox needs it)
 	@if [ ! -d "l2e_boot/musl_build" ]; then \
 		cd l2e_boot/musl && \
 		./configure --disable-shared --prefix=../musl_build --syslibdir=../musl_build/lib && \
@@ -65,8 +59,14 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 		cp -r ../kernel_headers/include/asm-generic ../musl_build/include/ && \
 		cp -r ../kernel_headers/include/mtd ../musl_build/include/; \
 	fi
-
-	# Build busybox
+	
+	# Clone busybox for basic utilities
+	@if [ ! -d "l2e_boot/busybox" ]; then \
+		echo "Cloning busybox 1.37.0 sources..."; \
+		git clone --depth 1 -b 1_37_0 git://busybox.net/busybox.git l2e_boot/busybox; \
+	fi
+	
+	# Build busybox (now musl-gcc is available)
 	@if [ ! -f "l2e_boot/linux/l2e/busybox" ]; then \
 		cd l2e_boot/busybox && \
 		cp ../l2e_sources/L2E.busybox.config .config && \
@@ -99,8 +99,6 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 	cp $(LLAMA2C_DIR)/run.c l2e_boot/linux/l2e/
 	cp $(LLAMA2C_DIR)/stories15M.bin l2e_boot/linux/l2e/model.bin
 	cp $(LLAMA2C_DIR)/tokenizer.bin l2e_boot/linux/l2e/tokenizer.bin
-
-
 	
 	# Build limine
 	@if [ ! -d "l2e_boot/limine/bin" ]; then \
