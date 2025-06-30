@@ -26,7 +26,6 @@ static const char *logo =
 static const char *usage =
     "  === USAGE INSTRUCTIONS ===\n"
     "  * Run inference:     talk \"Your prompt here\"\n"
-    "  * Short alias:       t \"Your prompt here\"\n"
     "  * View kernel log:   dmesg\n"
     "  * Exit QEMU:         Ctrl-A then X\n"
     "\n";
@@ -75,45 +74,25 @@ int main() {
     };
 
     // Setup busybox symlinks
-    child = fork();
-    if (child == 0) {
-        char *setup[] = {"/bin/busybox", "--install", "-s", "/bin", NULL};
-        execve(setup[0], setup, envp);
-        _exit(1);
-    }
+    char *setup[] = {"/bin/busybox", "--install", "-s", "/bin", NULL};
+    if ((child = fork()) == 0) execve(setup[0], setup, envp), _exit(1);
     waitpid(child, NULL, 0);
 
-    // Mount proc
-    child = fork();
-    if (child == 0) {
-        char *mount[] = {"/bin/busybox", "mount", "-t", "proc", "proc", "/proc", NULL};
-        execve(mount[0], mount, envp);
-        _exit(1);
-    }
+    // Mount proc and sys
+    char *mount_proc[] = {"/bin/busybox", "mount", "-t", "proc", "proc", "/proc", NULL};
+    if ((child = fork()) == 0) execve(mount_proc[0], mount_proc, envp), _exit(1);
     waitpid(child, NULL, 0);
 
-    // Mount sys
-    child = fork();
-    if (child == 0) {
-        char *mount[] = {"/bin/busybox", "mount", "-t", "sysfs", "sysfs", "/sys", NULL};
-        execve(mount[0], mount, envp);
-        _exit(1);
-    }
+    char *mount_sys[] = {"/bin/busybox", "mount", "-t", "sysfs", "sysfs", "/sys", NULL};
+    if ((child = fork()) == 0) execve(mount_sys[0], mount_sys, envp), _exit(1);
     waitpid(child, NULL, 0);
-
-    // Print logo and usage
+    
+    // Print usage
     printf("%s", logo);
     printf("%s", usage);
 
-    // Start shell with aliases
-    char *argv[] = {
-        "/bin/busybox", 
-        "ash", 
-        "-c", 
-        "alias talk='/l2e /model.bin -n 256 -i'; alias t='talk'; exec ash -i",
-        NULL
-    };
-    
+    // Start a simple interactive shell
+    char *argv[] = { "/bin/ash", "-i", NULL };
     execve(argv[0], argv, envp);
     
     // Should never reach here

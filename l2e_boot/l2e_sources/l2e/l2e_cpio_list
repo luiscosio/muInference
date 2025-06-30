@@ -28,6 +28,7 @@ dir /bin  0755 0 0
 dir /root 0755 0 0
 file /l2e l2e/l2e_bin 755 0 0
 file /init l2e/init 755 0 0
+file /bin/talk l2e/talk.sh 755 0 0
 file /bin/busybox l2e/busybox 755 0 0
 file /model.bin l2e/model.bin 644 0 0
 file /tokenizer.bin l2e/tokenizer.bin 644 0 0
