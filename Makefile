@@ -49,6 +49,23 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 		git clone --depth 1 -b 1_37_0 git://busybox.net/busybox.git l2e_boot/busybox; \
 	fi
 	
+	# Build musl
+	@if [ ! -d "l2e_boot/musl_build" ]; then \
+		cd l2e_boot/musl && \
+		./configure --disable-shared --prefix=../musl_build --syslibdir=../musl_build/lib && \
+		make -j$$(nproc) && \
+		make install && \
+		cd ../musl_build && \
+		sed -i "s@../musl_build@$$(pwd)@g" bin/musl-gcc && \
+		sed -i "s@../musl_build@$$(pwd)@g" lib/musl-gcc.specs && \
+		cd ../linux && \
+		make headers_install INSTALL_HDR_PATH=../kernel_headers && \
+		cp -r ../kernel_headers/include/linux ../musl_build/include/ && \
+		cp -r ../kernel_headers/include/asm ../musl_build/include/ && \
+		cp -r ../kernel_headers/include/asm-generic ../musl_build/include/ && \
+		cp -r ../kernel_headers/include/mtd ../musl_build/include/; \
+	fi
+
 	# Build busybox
 	@if [ ! -f "l2e_boot/linux/l2e/busybox" ]; then \
 		cd l2e_boot/busybox && \
@@ -83,30 +100,7 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 	cp $(LLAMA2C_DIR)/stories15M.bin l2e_boot/linux/l2e/model.bin
 	cp $(LLAMA2C_DIR)/tokenizer.bin l2e_boot/linux/l2e/tokenizer.bin
 
-	# Build musl
-	@if [ ! -d "l2e_boot/musl_build" ]; then \
-		cd l2e_boot/musl && \
-		./configure --disable-shared --prefix=../musl_build --syslibdir=../musl_build/lib && \
-		make -j$$(nproc) && \
-		make install && \
-		cd ../musl_build && \
-		sed -i "s@../musl_build@$$(pwd)@g" bin/musl-gcc && \
-		sed -i "s@../musl_build@$$(pwd)@g" lib/musl-gcc.specs && \
-		cd ../linux && \
-		make headers_install INSTALL_HDR_PATH=../kernel_headers && \
-		cp -r ../kernel_headers/include/linux ../musl_build/include/ && \
-		cp -r ../kernel_headers/include/asm ../musl_build/include/ && \
-		cp -r ../kernel_headers/include/asm-generic ../musl_build/include/ && \
-		cp -r ../kernel_headers/include/mtd ../musl_build/include/; \
-	fi
-	
-	# Build toybox
-	@if [ ! -f "l2e_boot/linux/l2e/toybox" ]; then \
-		cd l2e_boot/toybox && \
-		cp ../l2e_sources/L2E.toybox.config .config && \
-		make CC=../musl_build/bin/musl-gcc CFLAGS="-static" -j$$(nproc) && \
-		cp toybox ../linux/l2e/; \
-	fi
+
 	
 	# Build limine
 	@if [ ! -d "l2e_boot/limine/bin" ]; then \
@@ -157,7 +151,7 @@ boot_iso: ##		- Boot ISO in QEMU
 clean: ##		- Clean build artifacts
 	@if [ -d "$(LLAMA2C_DIR)" ]; then cd $(LLAMA2C_DIR) && make clean; fi
 	@if [ -d "l2e_boot/linux" ]; then cd l2e_boot/linux && make clean; fi
-	@if [ -d "l2e_boot/toybox" ]; then cd l2e_boot/toybox && make clean; fi
+	@if [ -d "l2e_boot/busybox" ]; then cd l2e_boot/busybox && make clean; fi
 	@if [ -d "l2e_boot/musl" ]; then cd l2e_boot/musl && make clean; fi
 	@if [ -d "l2e_boot/limine" ]; then cd l2e_boot/limine && make clean; fi
 	rm -f l2e_boot/*.iso
