@@ -19,8 +19,8 @@ static const char *logo =
     "   |  _  | | || | | |  _|  __/ | |  __/ | | | (_|  __/\n"
     "   |_| |_||___|_| |_|_|  \\___|_|  \\___|_| |_|\\___\\___|\n"
     "\n"
-    "   Minimal Inference Server for Edge Deployment\n"
-    "   LLaMA Model: stories15M (15M parameters)\n"
+    "   Research platform for a micro inference server for SL5\n"
+    "   Model: https://huggingface.co/karpathy/tinyllamas/resolve/main/stories15M.bin\n"
     "\n";
 
 static const char *usage =
@@ -34,6 +34,7 @@ static const char *usage =
 int main() {
     sigset_t set;
     int status;
+    pid_t child;
     
     // Check if we're PID 1
     if (getpid() != 1) {
@@ -51,19 +52,17 @@ int main() {
     setsid();
     setpgid(0, 0);
 
-    // Print logo and usage
-    printf("%s", logo);
-    printf("%s", usage);
+    // Open console as controlling terminal
+    int fd = open("/dev/console", O_RDWR);
+    if (fd >= 0) {
+        ioctl(fd, TIOCSCTTY, 1);
+        dup2(fd, 0);
+        dup2(fd, 1);
+        dup2(fd, 2);
+        if (fd > 2) close(fd);
+    }
 
-    // Setup shell with aliases
-    char *argv[] = {
-        "/bin/busybox", 
-        "ash", 
-        "-c", 
-        "alias talk='/l2e /model.bin -n 256 -i'; alias t='talk'; exec ash",
-        NULL
-    };
-    
+    // Environment for all commands
     char *envp[] = {
         "HOME=/root/",
         "TERM=linux",
@@ -75,8 +74,8 @@ int main() {
         NULL
     };
 
-    // Setup userspace
-    pid_t child = fork();
+    // Setup busybox symlinks
+    child = fork();
     if (child == 0) {
         char *setup[] = {"/bin/busybox", "--install", "-s", "/bin", NULL};
         execve(setup[0], setup, envp);
@@ -102,17 +101,19 @@ int main() {
     }
     waitpid(child, NULL, 0);
 
-    // Open console as controlling terminal
-    int fd = open("/dev/console", O_RDWR);
-    if (fd >= 0) {
-        ioctl(fd, TIOCSCTTY, 1);
-        dup2(fd, 0);
-        dup2(fd, 1);
-        dup2(fd, 2);
-        if (fd > 2) close(fd);
-    }
+    // Print logo and usage
+    printf("%s", logo);
+    printf("%s", usage);
 
-    // Hand off to shell
+    // Start shell with aliases
+    char *argv[] = {
+        "/bin/busybox", 
+        "ash", 
+        "-c", 
+        "alias talk='/l2e /model.bin -n 256 -i'; alias t='talk'; exec ash -i",
+        NULL
+    };
+    
     execve(argv[0], argv, envp);
     
     // Should never reach here
