@@ -107,7 +107,7 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 		curl -L https://github.com/limine-bootloader/limine/releases/download/v5.20230830.0/limine-5.20230830.0.tar.xz | tar -xJf - -C l2e_boot/limine --strip-components 1; \
 	fi
 	
-	# Copy llama2.c files to kernel (only if not already copied)
+	# Copy llama2.c files to kernel FIRST (before limine build)
 	@if [ ! -f "l2e_boot/linux/l2e/llama2c/run" ]; then \
 		echo "Copying llama2.c files to kernel..."; \
 		mkdir -p l2e_boot/linux/l2e/llama2c; \
@@ -125,14 +125,19 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 		echo "Building limine bootloader with $(JOBS) jobs..."; \
 		cd l2e_boot/limine && \
 		./configure --enable-bios-cd --enable-bios --enable-uefi-x86-64 --enable-uefi-cd && \
-		make -j$(JOBS) && \
-		rm -rf ../ISO && \
-		cp -R ../l2e_sources/ISO ../ && \
-		mkdir -p ../ISO/EFI/BOOT && \
-		cp bin/limine-bios-cd.bin ../ISO/ && \
-		cp bin/limine-bios.sys ../ISO/ && \
-		cp bin/limine-uefi-cd.bin ../ISO/ && \
-		cp bin/BOOTX64.EFI ../ISO/EFI/BOOT/; \
+		make -j$(JOBS); \
+	fi
+	
+	# Create ISO directory structure from l2e_sources AFTER limine is built
+	@if [ ! -d "l2e_boot/ISO" ]; then \
+		echo "Creating ISO directory structure..."; \
+		rm -rf l2e_boot/ISO && \
+		cp -R l2e_boot/l2e_sources/ISO l2e_boot/ && \
+		mkdir -p l2e_boot/ISO/EFI/BOOT && \
+		cp l2e_boot/limine/bin/limine-bios-cd.bin l2e_boot/ISO/ && \
+		cp l2e_boot/limine/bin/limine-bios.sys l2e_boot/ISO/ && \
+		cp l2e_boot/limine/bin/limine-uefi-cd.bin l2e_boot/ISO/ && \
+		cp l2e_boot/limine/bin/BOOTX64.EFI l2e_boot/ISO/EFI/BOOT/; \
 	fi
 
 	# Build l2e userspace binaries BEFORE kernel build

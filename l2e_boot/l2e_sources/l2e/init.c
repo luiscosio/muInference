@@ -245,7 +245,7 @@ int main() {
   //char *argv[] = {"/bin/sh", NULL};
   char *argv[] = {"/bin/busybox", "setsid", "-c", "/bin/busybox", "ash", NULL};
   char *envp[] = {"HOME=/root/", "TERM=linux", "PATH=/:/bin", "TZ=UTC0", "USER=root",
-  		  "LOGNAME=[l2e_init]", "ENV=/.fsociety/shellcode.sh", "PS1=TEMPLE DOS #| ", NULL};
+  		  "LOGNAME=[l2e_init]", "PS1=TEMPLE DOS #| ", NULL};
 
   pid_t child;
   
@@ -254,12 +254,6 @@ int main() {
   char *mountdev[] = {"/bin/busybox", "mount", "devtmpfs", "-t", "devtmpfs", "-o", "mode=0755,nosuid", "/dev", NULL};
   char *mountproc[] = {"/bin/busybox", "mount", "proc", "-t", "proc", "-o", "nosuid,noexec,nodev", "/proc", NULL};
   char *mountsys[] = {"/bin/busybox", "mount", "sysfs", "-t", "sysfs", "-o", "nosuid,noexec,nodev", "/sys", NULL};
-//char *mklock[] = {"/bin/mkdir", "-p", "/run/lock", "/run/shm", NULL};
-//char *mkchmod[] = {"/bin/chmod", "1777", "/run/lock", "/run/shm", NULL};
-//char *mklinkshm[] = {"/bin/ln", "-sfn", "/run/shm", "/dev/shm", NULL};
-//char *mklinkrun[] = {"/bin/ln", "-sfv", "/run", "/var/run", NULL};
-//char *mklinklock[] = {"/bin/ln", "-sfv", "/run/lock", "/var/lock", NULL};
-//char *initscripts[] = {"/bin/ash", "-c", "/????.sh", NULL};
 
   int childstatus;
 
@@ -280,37 +274,7 @@ int main() {
       return (-1);
     }
   }
-  // USERSPACE CREATION END
 
-  /*
-  // DO MOUNTS
-  rainbowprint("  *** Info: Mounts\n");
-  child = fork();
-  if (child == -1) {
-    fprintf(stderr, "  *** Mounting failed! ***\n");
-  }
-  if (child == 0) {
-    rainbowprint("  *** Action: Mounting run\n");
-    if (execve(mountrun[0], mountrun, envp)) {
-      fprintf(stderr, "  *** Mounting run failed! ***\n");
-      return (-1);
-    }
-  }
-  
-  // DEVTEMPFS
-  child = fork();
-  if (child == -1) {
-    fprintf(stderr, "  *** Mounting failed! ***\n");
-  }
-  if (child == 0) {
-    rainbowprint("  *** Action: Mounting devtmpfs");
-    if (execve(mountdev[0], mountdev, envp)) {
-      fprintf(stderr, "  *** Mounting devtmpfs failed! ***\n");
-      return (-1);
-    }
-  }
-  // END DEVTEMPFS
-*/
   child = fork();
   if (child == -1) {
     fprintf(stderr, "  *** Mounting failed! ***\n");
@@ -345,136 +309,6 @@ int main() {
       // return (childstatus);
     }
   }
-/*
-  // CREATE LOCK DIR
-  rainbowprint("  *** Info: Directories\n");
-  child = fork();
-  if (child == -1) {
-    fprintf(stderr, "  *** Directory creation failed! ***\n");
-  }
-  if (child == 0) {
-    rainbowprint("  *** Action: Directory creation\n");
-    if (execve(mklock[0], mklock, envp)) {
-      fprintf(stderr, "  *** Directory creation failed! ***\n");
-      return (-1);
-    }
-  }
-
-  if (child > 0) {
-    while ((child = wait(&childstatus)) > 0)
-      ;
-    if (childstatus == 0) {
-      rainbowprint("  *** Success: Directory creation succeeded!\n");
-    } else {
-      fprintf(stderr, "  *** Directory creation failed! ***\n");
-      // return (childstatus);
-    }
-  }
-
-  // CHANGE LOCK DIR PERM
-  rainbowprint("  *** Action: Permissions\n");
-  child = fork();
-  if (child == -1) {
-    fprintf(stderr, "  *** Changing directory permissions failed! ***\n");
-  }
-  if (child == 0) {
-    rainbowprint("  *** Action: Changing directory permissions\n");
-    if (execve(mkchmod[0], mkchmod, envp)) {
-      fprintf(stderr, "  *** Changing directory permissions failed! ***\n");
-      return (-1);
-    }
-  }
-
-  if (child > 0) {
-    while ((child = wait(&childstatus)) > 0)
-      ;
-    if (childstatus == 0) {
-      rainbowprint("  *** Success: Permission change succeeded!\n");
-    } else {
-      fprintf(stderr, "  *** Permission change failed! ***\n");
-      // return (childstatus);
-    }
-  }
-
-  // LINKING
-  rainbowprint("  *** Action: Links\n");
-  child = fork();
-  if (child == -1) {
-    fprintf(stderr, "  *** Linking shm failed! ***\n");
-  }
-  if (child == 0) {
-    rainbowprint("  *** Action: Linking shm\n");
-    if (execve(mklinkshm[0], mklinkshm, envp)) {
-      fprintf(stderr, "  *** Linking shm failed! ***\n");
-      return (-1);
-    }
-  }
-
-  child = fork();
-  if (child == -1) {
-    fprintf(stderr, "  *** Linking run failed! ***\n");
-  }
-  if (child == 0) {
-    rainbowprint("  *** Action: Linking run\n");
-    if (execve(mklinkrun[0], mklinkrun, envp)) {
-      fprintf(stderr, "  *** Linking run failed! ***\n");
-      return (-1);
-    }
-  }
-
-  child = fork();
-  if (child == -1) {
-    fprintf(stderr, "  *** Linking lock failed! ***\n");
-  }
-  if (child == 0) {
-    rainbowprint("  *** Action: Linking lock\n");
-    if (execve(mklinklock[0], mklinklock, envp)) {
-      fprintf(stderr, "  *** Linking lock failed! ***\n");
-      return (-1);
-    }
-  }
-
-  if (child > 0) {
-    while ((child = wait(&childstatus)) > 0)
-      ;
-    if (childstatus == 0) {
-      rainbowprint("  *** Success: All links succeeded!\n");
-    } else {
-      fprintf(stderr, "  *** Links failed! ***\n");
-      // return (childstatus);
-    }
-  }
-
-*/
-
-/*
-  // RUN INITSCRIPT
-  rainbowprint("  *** Action: uInit Script");
-  child = fork();
-  if (child == -1) {
-    fprintf(stderr, "  *** uInit Script failed! ***\n");
-  }
-  if (child == 0) {
-    rainbowprint("  *** Action: Running uInit Script");
-    if (execve(initscripts[0], initscripts, envp)) {
-      fprintf(stderr, "  *** uInit Script failed! ***\n");
-      return (-1);
-    }
-  }
-
-  if (child > 0) {
-    while ((child = wait(&childstatus)) > 0)
-      ;
-    if (childstatus == 0) {
-      rainbowprint("  *** Success: uInit Script succeeded!");
-    } else {
-      fprintf(stderr, "  *** Init uScript failed! ***\n");
-      // return (childstatus);
-    }
-  }
-// RUN INITSCRIPT END
-*/
-
 
   // BOOT INFO
   rainbowprint(infotext);
