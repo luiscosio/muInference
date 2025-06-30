@@ -219,7 +219,13 @@ int main() {
   setsid();
   setpgid(0, 0);
 
-  char *argv[] = {"/bin/busybox", "ash", NULL};
+  char *argv[] = {
+      "/bin/busybox", 
+      "ash", 
+      "-c", 
+      "alias talk='/l2e /model.bin -n 256 -i'; alias t='talk'; exec ash",
+      NULL
+  };  
   char *envp[] = {"HOME=/root/", "TERM=linux", "PATH=/:/bin", "TZ=UTC0", "USER=root",
   		  "LOGNAME=[init]", "PS1=\\033[1;32mμInference\\033[0m # ", NULL};
 
