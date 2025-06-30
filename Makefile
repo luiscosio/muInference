@@ -73,15 +73,11 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 	@if [ ! -f "l2e_boot/linux/l2e/Makefile" ]; then \
 		echo "Copying L2E sources to kernel..."; \
 		mkdir -p l2e_boot/linux/l2e; \
-		mkdir -p l2e_boot/linux/drivers/misc; \
 		if [ ! -d "l2e_boot/l2e_sources" ]; then \
 			echo "Error: l2e_boot/l2e_sources directory not found!"; \
 			exit 1; \
 		fi; \
 		cp -R l2e_boot/l2e_sources/l2e/. l2e_boot/linux/l2e/; \
-		cp -R l2e_boot/l2e_sources/l2e_os l2e_boot/linux/drivers/misc/; \
-		cp l2e_boot/l2e_sources/Kconfig l2e_boot/linux/drivers/misc/; \
-		cp l2e_boot/l2e_sources/Makefile l2e_boot/linux/drivers/misc/; \
 		cp l2e_boot/l2e_sources/L2E.gcc.config l2e_boot/linux/.config; \
 	fi
 	

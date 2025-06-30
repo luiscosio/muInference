@@ -1,53 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<record
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://www.loc.gov/MARC21/slim http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd"
-    xmlns="http://www.loc.gov/MARC21/slim">
-
-  <leader>00928nmmaa22001697  4500</leader>
-  <controlfield tag="005">20240101120000.0</controlfield>
-  <controlfield tag="008">240101b        |||||||gq||b| 00| 0 eng d</controlfield>
-  <datafield tag="040" ind1=" " ind2=" ">
-    <subfield code="c">μInference Project</subfield>
-    <subfield code="a">μInference Project</subfield>
-  </datafield>
-  <datafield tag="210" ind1=" " ind2=" ">
-    <subfield code="a">μInference</subfield>
-  </datafield>
-  <datafield tag="222" ind1=" " ind2=" ">
-    <subfield code="a">μInference v1.0</subfield>
-  </datafield>
+<record xmlns="http://www.loc.gov/MARC21/slim">
   <datafield tag="245" ind1=" " ind2=" ">
     <subfield code="a">μInference v1.0</subfield>
-    <subfield code="h">ISO Image / CDROM</subfield>
-    <subfield code="b">μInference - Research platform for a micro inference server for SL5 UEFI/BIOS Hybrid Live Boot Disk</subfield>
-    <subfield code="c">Copyright (C) 2024 μInference Project Contributors. Licensed under MIT License. Contains code whose copyright is owned by their respective project owners.</subfield>
-  </datafield>
-  <datafield tag="260" ind1=" " ind2=" ">
-    <subfield code="a">International / Web / Internet</subfield>
-    <subfield code="b">μInference Project Contributors</subfield>
-    <subfield code="c">2024</subfield>
-  </datafield>
-  <datafield tag="270" ind1=" " ind2=" ">
-    <subfield code="m">contact@muinference.org</subfield>
-    <subfield code="p">μInference Team</subfield>
-    <subfield code="q">Research Platform</subfield>
-  </datafield>
-  <datafield tag="365" ind1=" " ind2=" ">
-    <subfield code="b">0.00</subfield>
-    <subfield code="c">USD</subfield>
-    <subfield code="e">Free and open source research platform under MIT License</subfield>
-    <subfield code="m">μInference Project</subfield>
-  </datafield>
-  <datafield tag="856" ind1=" " ind2=" ">
-    <subfield code="q">application/vnd.efi.iso</subfield>
-    <subfield code="u">https://github.com/luiscosio/muinference</subfield>
-    <subfield code="y">μInference - Research platform for micro inference server for SL5</subfield>
-    <subfield code="z">μInference Github Repository</subfield>
-  </datafield>
-  <datafield tag="942" ind1=" " ind2=" ">
-    <subfield code="2">z</subfield>
-    <subfield code="n">0</subfield>
-    <subfield code="c">CF</subfield>
   </datafield>
 </record>
