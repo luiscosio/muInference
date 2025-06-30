@@ -60,21 +60,7 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 		cp -r ../kernel_headers/include/mtd ../musl_build/include/; \
 	fi
 	
-	# Clone busybox for basic utilities
-	@if [ ! -d "l2e_boot/busybox" ]; then \
-		echo "Cloning busybox 1.37.0 sources..."; \
-		git clone --depth 1 -b 1_37_0 git://busybox.net/busybox.git l2e_boot/busybox; \
-	fi
-	
-	# Build busybox (now musl-gcc is available)
-	@if [ ! -f "l2e_boot/linux/l2e/busybox" ]; then \
-		cd l2e_boot/busybox && \
-		cp ../l2e_sources/L2E.busybox.config .config && \
-		make -j$$(nproc) CC=../musl_build/bin/musl-gcc CFLAGS="-static" && \
-		cp busybox ../linux/l2e/; \
-	fi
-	
-	# Copy L2E sources to kernel
+	# Copy L2E sources to kernel FIRST (so directories exist for busybox)
 	mkdir -p l2e_boot/linux/l2e
 	mkdir -p l2e_boot/linux/drivers/misc
 	cp -R l2e_boot/l2e_sources/l2e l2e_boot/linux/
@@ -82,6 +68,20 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 	cp l2e_boot/l2e_sources/Kconfig l2e_boot/linux/drivers/misc/
 	cp l2e_boot/l2e_sources/Makefile l2e_boot/linux/drivers/misc/
 	cp l2e_boot/l2e_sources/L2E.gcc.config l2e_boot/linux/.config
+	
+	# Clone busybox for basic utilities
+	@if [ ! -d "l2e_boot/busybox" ]; then \
+		echo "Cloning busybox 1.37.0 sources..."; \
+		git clone --depth 1 -b 1_37_0 git://busybox.net/busybox.git l2e_boot/busybox; \
+	fi
+	
+	# Build busybox (now musl-gcc is available and l2e directory exists)
+	@if [ ! -f "l2e_boot/linux/l2e/busybox" ]; then \
+		cd l2e_boot/busybox && \
+		cp ../l2e_sources/L2E.busybox.config .config && \
+		make -j$$(nproc) CC=../musl_build/bin/musl-gcc CFLAGS="-static" && \
+		cp busybox ../linux/l2e/; \
+	fi
 	
 	# Clone limine bootloader
 	@if [ ! -d "l2e_boot/limine" ]; then \
