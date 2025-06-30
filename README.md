@@ -63,7 +63,7 @@ make JOBS=8 iso    # Use 8 parallel jobs
 
 ## Output
 
-Creates `l2e_boot/muinference.iso` (~500MB) containing:
+Creates `l2e_boot/muinference.iso` (~50MB) containing:
 - Linux kernel 6.5 with L2E module
 - llama2.c with stories15M model (15M parameters)
 - Minimal userspace (musl + busybox)
