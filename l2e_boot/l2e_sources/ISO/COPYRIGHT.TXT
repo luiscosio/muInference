@@ -1,2 +1,2 @@
-Copyright (C) 2023 L2E OS - Vulcan Ignis @TRHolding @Amica Board
-Contains code whose copyright is owned by their respective project owners.
+Copyright (C) 2024 μInference Project Contributors
+Licensed under MIT License - see LICENSE file for details

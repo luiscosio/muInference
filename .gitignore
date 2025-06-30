@@ -2,4 +2,6 @@ l2e_boot/linux/
 llama2c/
 l2e_boot/limine/
 l2e_boot/musl/
+l2e_boot/musl_build/
 l2e_boot/busybox/
+l2e_boot/kernel_headers/

@@ -5,45 +5,45 @@
     xmlns="http://www.loc.gov/MARC21/slim">
 
   <leader>00928nmmaa22001697  4500</leader>
-  <controlfield tag="005">20230909170024.0</controlfield>
-  <controlfield tag="008">230909b        |||||||gq||b| 00| 0 eng d</controlfield>
+  <controlfield tag="005">20240101120000.0</controlfield>
+  <controlfield tag="008">240101b        |||||||gq||b| 00| 0 eng d</controlfield>
   <datafield tag="040" ind1=" " ind2=" ">
-    <subfield code="c">Vulcan Ignis @L2E</subfield>
-    <subfield code="a">Vulcan Ignis @L2E</subfield>
+    <subfield code="c">μInference Project</subfield>
+    <subfield code="a">μInference Project</subfield>
   </datafield>
   <datafield tag="210" ind1=" " ind2=" ">
-    <subfield code="a">L2E OS </subfield>
+    <subfield code="a">μInference</subfield>
   </datafield>
   <datafield tag="222" ind1=" " ind2=" ">
-    <subfield code="a">L2E OS v0.1 "TEMPLE DOS"</subfield>
+    <subfield code="a">μInference v1.0</subfield>
   </datafield>
   <datafield tag="245" ind1=" " ind2=" ">
-    <subfield code="a">L2E OS v0.1</subfield>
+    <subfield code="a">μInference v1.0</subfield>
     <subfield code="h">ISO Image / CDROM</subfield>
-    <subfield code="b">L2E OS v0.1 "TEMPLE DOS" UEFI/BIOS Hybrid Live Boot Disk</subfield>
-    <subfield code="c">Copyright (C) 2023 L2E OS - Vulcan Ignis @TRHolding @Amica Board. Contains code whose copyright is owned by their respective project owners.</subfield>
+    <subfield code="b">μInference - Research platform for a micro inference server for SL5 UEFI/BIOS Hybrid Live Boot Disk</subfield>
+    <subfield code="c">Copyright (C) 2024 μInference Project Contributors. Licensed under MIT License. Contains code whose copyright is owned by their respective project owners.</subfield>
   </datafield>
   <datafield tag="260" ind1=" " ind2=" ">
     <subfield code="a">International / Web / Internet</subfield>
-    <subfield code="b">Vulcan Ignis @L2E @TRHolding @Amica Board</subfield>
-    <subfield code="c">2023</subfield>
+    <subfield code="b">μInference Project Contributors</subfield>
+    <subfield code="c">2024</subfield>
   </datafield>
   <datafield tag="270" ind1=" " ind2=" ">
-    <subfield code="m">1ohm@proton.me</subfield>
-    <subfield code="p">Vulcan Ignis</subfield>
-    <subfield code="q">Founder @L2E</subfield>
+    <subfield code="m">contact@muinference.org</subfield>
+    <subfield code="p">μInference Team</subfield>
+    <subfield code="q">Research Platform</subfield>
   </datafield>
   <datafield tag="365" ind1=" " ind2=" ">
-    <subfield code="b">99.99</subfield>
+    <subfield code="b">0.00</subfield>
     <subfield code="c">USD</subfield>
-    <subfield code="e">Price is valid only for libraries that offer non free access.</subfield>
-    <subfield code="m">Vulcan Ignis @L2E</subfield>
+    <subfield code="e">Free and open source research platform under MIT License</subfield>
+    <subfield code="m">μInference Project</subfield>
   </datafield>
   <datafield tag="856" ind1=" " ind2=" ">
     <subfield code="q">application/vnd.efi.iso</subfield>
-    <subfield code="u">https://github.com/trholding/llama2.c</subfield>
-    <subfield code="y">Llama 2 Everywhere OS (L2E OS)</subfield>
-    <subfield code="z">L2E OS Github Repository</subfield>
+    <subfield code="u">https://github.com/luiscosio/muinference</subfield>
+    <subfield code="y">μInference - Research platform for micro inference server for SL5</subfield>
+    <subfield code="z">μInference Github Repository</subfield>
   </datafield>
   <datafield tag="942" ind1=" " ind2=" ">
     <subfield code="2">z</subfield>
@@ -51,4 +51,3 @@
     <subfield code="c">CF</subfield>
   </datafield>
 </record>
-

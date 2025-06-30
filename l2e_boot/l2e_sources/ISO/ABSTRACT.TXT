@@ -1,2 +1,1 @@
-L2E OS v0.1 "TEMPLE DOS" UEFI/BIOS Hybrid Live Boot Disk
-
+μInference - Research platform for a micro inference server for SL5.
