@@ -41,8 +41,24 @@ jobs:
           lld \
           nasm
 
+    - name: Cache build dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          llama2c
+          l2e_boot/linux
+          l2e_boot/musl
+          l2e_boot/musl_build
+          l2e_boot/busybox
+          l2e_boot/limine
+        key: ${{ runner.os }}-build-deps-${{ hashFiles('Makefile') }}
+        restore-keys: |
+          ${{ runner.os }}-build-deps-
+
     - name: Build μInference ISO
-      run: make iso
+      run: |
+        echo "Building with $(nproc) parallel jobs"
+        make fast-build iso
 
     - name: Generate release tag
       id: tag
