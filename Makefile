@@ -61,13 +61,20 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 	fi
 	
 	# Copy L2E sources to kernel FIRST (so directories exist for busybox)
-	mkdir -p l2e_boot/linux/l2e
-	mkdir -p l2e_boot/linux/drivers/misc
-	cp -R l2e_boot/l2e_sources/l2e l2e_boot/linux/
-	cp -R l2e_boot/l2e_sources/l2e_os l2e_boot/linux/drivers/misc/
-	cp l2e_boot/l2e_sources/Kconfig l2e_boot/linux/drivers/misc/
-	cp l2e_boot/l2e_sources/Makefile l2e_boot/linux/drivers/misc/
-	cp l2e_boot/l2e_sources/L2E.gcc.config l2e_boot/linux/.config
+	@if [ ! -f "l2e_boot/linux/l2e/Makefile" ]; then \
+		echo "Copying L2E sources to kernel..."; \
+		mkdir -p l2e_boot/linux/l2e; \
+		mkdir -p l2e_boot/linux/drivers/misc; \
+		if [ ! -d "l2e_boot/l2e_sources" ]; then \
+			echo "Error: l2e_boot/l2e_sources directory not found!"; \
+			exit 1; \
+		fi; \
+		cp -R l2e_boot/l2e_sources/l2e/. l2e_boot/linux/l2e/; \
+		cp -R l2e_boot/l2e_sources/l2e_os l2e_boot/linux/drivers/misc/; \
+		cp l2e_boot/l2e_sources/Kconfig l2e_boot/linux/drivers/misc/; \
+		cp l2e_boot/l2e_sources/Makefile l2e_boot/linux/drivers/misc/; \
+		cp l2e_boot/l2e_sources/L2E.gcc.config l2e_boot/linux/.config; \
+	fi
 	
 	# Clone busybox for basic utilities
 	@if [ ! -d "l2e_boot/busybox" ]; then \
@@ -90,17 +97,18 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 		curl -L https://github.com/limine-bootloader/limine/releases/download/v5.20230830.0/limine-5.20230830.0.tar.xz | tar -xJf - -C l2e_boot/limine --strip-components 1; \
 	fi
 	
-	# Copy llama2.c files to kernel
-	mkdir -p l2e_boot/linux/l2e/llama2c
-	cp $(LLAMA2C_DIR)/run l2e_boot/linux/l2e/llama2c/
-	cp $(LLAMA2C_DIR)/runq l2e_boot/linux/l2e/llama2c/
-	cp $(LLAMA2C_DIR)/stories15M.bin l2e_boot/linux/l2e/llama2c/
-	cp $(LLAMA2C_DIR)/tokenizer.bin l2e_boot/linux/l2e/llama2c/
-	
-	# Copy source and create symlinks for the kernel module build
-	cp $(LLAMA2C_DIR)/run.c l2e_boot/linux/l2e/
-	cp $(LLAMA2C_DIR)/stories15M.bin l2e_boot/linux/l2e/model.bin
-	cp $(LLAMA2C_DIR)/tokenizer.bin l2e_boot/linux/l2e/tokenizer.bin
+	# Copy llama2.c files to kernel (only if not already copied)
+	@if [ ! -f "l2e_boot/linux/l2e/llama2c/run" ]; then \
+		echo "Copying llama2.c files to kernel..."; \
+		mkdir -p l2e_boot/linux/l2e/llama2c; \
+		cp $(LLAMA2C_DIR)/run l2e_boot/linux/l2e/llama2c/; \
+		cp $(LLAMA2C_DIR)/runq l2e_boot/linux/l2e/llama2c/; \
+		cp $(LLAMA2C_DIR)/stories15M.bin l2e_boot/linux/l2e/llama2c/; \
+		cp $(LLAMA2C_DIR)/tokenizer.bin l2e_boot/linux/l2e/llama2c/; \
+		cp $(LLAMA2C_DIR)/run.c l2e_boot/linux/l2e/; \
+		cp $(LLAMA2C_DIR)/stories15M.bin l2e_boot/linux/l2e/model.bin; \
+		cp $(LLAMA2C_DIR)/tokenizer.bin l2e_boot/linux/l2e/tokenizer.bin; \
+	fi
 	
 	# Build limine
 	@if [ ! -d "l2e_boot/limine/bin" ]; then \
@@ -117,10 +125,20 @@ l2e_os: build_llama2c ##		- Build L2E OS components
 	fi
 
 	# Build l2e userspace binaries BEFORE kernel build
-	cd l2e_boot/linux/l2e && make l2e_bin_cc
+	@if [ ! -f "l2e_boot/linux/l2e/l2e_bin" ]; then \
+		echo "Building L2E userspace binaries..."; \
+		cd l2e_boot/linux/l2e && make l2e_bin_cc; \
+	fi
 
-	# Build kernel
-	cd l2e_boot/linux && make V=1 -j1 LOCALVERSION="-μInference"
+	# Build kernel (only if not already built)
+	@if [ ! -f "l2e_boot/linux/arch/x86/boot/bzImage" ]; then \
+		echo "Building Linux kernel..."; \
+		cd l2e_boot/linux && make V=1 -j1 LOCALVERSION="-μInference"; \
+	fi
+	@if [ ! -d "l2e_boot/ISO" ]; then \
+		echo "Error: ISO directory not found! Limine build may have failed."; \
+		exit 1; \
+	fi
 	cp l2e_boot/linux/arch/x86/boot/bzImage l2e_boot/ISO/L2E_Exec
 
 .PHONY: l2e_os_iso
@@ -145,6 +163,15 @@ l2e_os_iso: ##		- Create bootable ISO image
 boot_iso: ##		- Boot ISO in QEMU
 	qemu-system-x86_64 -m 512M -cdrom l2e_boot/muinference.iso
 
+##@ Development
+
+.PHONY: force-rebuild
+force-rebuild: ##		- Force rebuild kernel and userspace
+	@echo "Forcing rebuild of kernel and userspace components..."
+	@rm -f l2e_boot/linux/arch/x86/boot/bzImage
+	@rm -f l2e_boot/linux/l2e/l2e_bin
+	@$(MAKE) l2e_os
+
 ##@ Cleanup
 
 .PHONY: clean
@@ -154,7 +181,7 @@ clean: ##		- Clean build artifacts
 	@if [ -d "l2e_boot/busybox" ]; then cd l2e_boot/busybox && make clean; fi
 	@if [ -d "l2e_boot/musl" ]; then cd l2e_boot/musl && make clean; fi
 	@if [ -d "l2e_boot/limine" ]; then cd l2e_boot/limine && make clean; fi
-	rm -f l2e_boot/*.iso
+	@rm -f l2e_boot/*.iso
 
 .PHONY: distclean
 distclean: clean ##		- Deep clean (remove downloaded sources)
