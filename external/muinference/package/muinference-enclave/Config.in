@@ -1,0 +1,7 @@
+config BR2_PACKAGE_MUINFERENCE_ENCLAVE
+	bool "muinference-enclave"
+	depends on BR2_PACKAGE_PYTHON3
+	help
+	  Installs the enclave_server.py and minimal config into the rootfs.
+	  This is the core Weight Enclave server for SL5-style GPU inference
+	  with minimal attack surface.

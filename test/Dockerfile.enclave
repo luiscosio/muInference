@@ -1,0 +1,29 @@
+# Lightweight test image for enclave server
+# This simulates the enclave environment without full Buildroot
+
+FROM python:3.11-slim
+
+# Minimal packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+RUN pip install --no-cache-dir \
+    pycryptodome \
+    torch --index-url https://download.pytorch.org/whl/cpu \
+    transformers \
+    accelerate \
+    sentencepiece
+
+# Copy enclave server
+COPY external/muinference/rootfs_overlay/opt/enclave_server.py /opt/enclave_server.py
+COPY external/muinference/rootfs_overlay/etc/muinference.conf /etc/muinference.conf
+
+# Set working directory
+WORKDIR /opt
+
+# Expose enclave port
+EXPOSE 9000
+
+# Run enclave server
+CMD ["python", "/opt/enclave_server.py"]

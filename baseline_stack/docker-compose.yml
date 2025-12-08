@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  inference:
+    build: .
+    image: baseline-llama-3.2-3b
+    container_name: baseline-inference
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/models:ro
+      - ~/.cache/huggingface:/root/.cache/huggingface:ro
+    environment:
+      # Uses unsloth/Llama-3.2-3B-Instruct from HuggingFace by default
+      # Set MODEL_PATH to local path if you have downloaded weights
+      - MODEL_PATH=unsloth/Llama-3.2-3B-Instruct
+      - PORT=8000
+      - PRELOAD_MODEL=false
+      - HF_HOME=/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s

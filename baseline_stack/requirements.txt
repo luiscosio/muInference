@@ -1,0 +1,10 @@
+# Baseline inference server requirements
+flask>=2.0
+gunicorn>=20.0
+torch>=2.0
+transformers>=4.30
+accelerate>=0.20
+safetensors>=0.3
+sentencepiece>=0.1
+protobuf>=3.20
+pycryptodome>=3.15

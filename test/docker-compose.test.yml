@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  # Enclave server (simulated)
+  enclave:
+    build:
+      context: ..
+      dockerfile: test/Dockerfile.enclave
+    container_name: muinference-enclave-test
+    ports:
+      - "9000:9000"
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface:ro
+    environment:
+      - MODEL_PATH=unsloth/Llama-3.2-3B-Instruct
+      - ENCLAVE_PORT=9000
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.connect(('localhost',9000)); s.close()"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # Baseline server for comparison
+  baseline:
+    build:
+      context: ../baseline_stack
+      dockerfile: Dockerfile
+    container_name: muinference-baseline-test
+    ports:
+      - "8000:8000"
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface:ro
+    environment:
+      - MODEL_PATH=unsloth/Llama-3.2-3B-Instruct
+      - PORT=8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
