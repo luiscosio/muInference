@@ -1,0 +1,71 @@
+# Dockerfile.baseline-realistic
+#
+# Realistic baseline inference stack for security comparison.
+# This represents what you'd typically find in production GPU inference:
+#
+# - Ubuntu 22.04 base (full server install)
+# - NVIDIA CUDA runtime
+# - Python with PyTorch + vLLM
+# - Common inference dependencies
+#
+# This is NOT meant to run inference - it's for attack surface comparison.
+
+FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
+
+LABEL maintainer="muinference"
+LABEL description="Realistic baseline inference stack for security comparison"
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Typical server packages you'd find in production
+RUN apt-get update && apt-get install -y \
+    # Base system
+    ubuntu-server \
+    # Networking
+    curl \
+    wget \
+    net-tools \
+    iproute2 \
+    openssh-server \
+    # Monitoring (common in prod)
+    htop \
+    iotop \
+    sysstat \
+    # Python
+    python3 \
+    python3-pip \
+    python3-venv \
+    # Common utilities
+    vim \
+    less \
+    git \
+    jq \
+    # Process management
+    supervisor \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python ML/inference stack (typical for vLLM/TGI deployment)
+RUN pip3 install --no-cache-dir \
+    torch>=2.0 \
+    transformers>=4.30 \
+    accelerate \
+    vllm \
+    safetensors \
+    sentencepiece \
+    protobuf \
+    # API frameworks
+    flask \
+    fastapi \
+    uvicorn \
+    gunicorn \
+    # Monitoring
+    prometheus-client \
+    # Common utilities
+    requests \
+    numpy \
+    pandas
+
+# This image is ~15GB+ with full CUDA + vLLM
+# Compare to muEnclave's ~50MB rootfs
+
+CMD ["bash"]

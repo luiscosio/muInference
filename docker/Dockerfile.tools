@@ -36,7 +36,8 @@ WORKDIR /workspace
 
 # Copy analysis scripts
 COPY docker/analyze.sh /usr/local/bin/analyze
-RUN chmod +x /usr/local/bin/analyze
+COPY docker/analyze_attack_surface.sh /usr/local/bin/analyze_attack_surface
+RUN chmod +x /usr/local/bin/analyze /usr/local/bin/analyze_attack_surface
 
 ENTRYPOINT ["/usr/local/bin/analyze"]
 CMD ["help"]

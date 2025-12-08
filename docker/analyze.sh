@@ -19,13 +19,17 @@ muinference Analysis Tools
 Usage: docker run -v \$(pwd):/workspace muinference-tools <command>
 
 Commands:
-  loc        Lines of code comparison (muEnclave vs baseline)
-  security   Security scan of baseline Docker image
-  all        Run all analyses
-  help       Show this help
+  loc           Lines of code comparison (custom code only)
+  attack        Full attack surface analysis (recommended)
+  security      Security scan of baseline Docker image
+  all           Run all analyses
+  help          Show this help
 
 Examples:
-  # Run LOC comparison
+  # Run full attack surface analysis (recommended)
+  docker run -v \$(pwd):/workspace -v /var/run/docker.sock:/var/run/docker.sock muinference-tools attack
+
+  # Run LOC comparison (custom code only)
   docker run -v \$(pwd):/workspace muinference-tools loc
 
   # Run security scan (requires Docker socket)
@@ -172,10 +176,25 @@ run_all() {
     security_scan
 }
 
+attack_surface() {
+    /usr/local/bin/analyze_attack_surface
+}
+
+run_all() {
+    attack_surface
+    echo ""
+    echo "================================================================"
+    echo ""
+    security_scan
+}
+
 # Main
 case "${1:-help}" in
     loc)
         loc_compare
+        ;;
+    attack)
+        attack_surface
         ;;
     security)
         security_scan
