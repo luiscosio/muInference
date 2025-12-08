@@ -13,6 +13,79 @@ muinference implements a minimal Weight Enclave for secure AI model inference, f
 - ~6GB in BF16 precision
 - Optimized by Unsloth for faster inference
 
+## Quick Start
+
+### Option A: Quick Test (No VM, ~5 minutes)
+
+Test the enclave server directly without building the full Buildroot VM:
+
+```bash
+# Clone and enter directory
+git clone https://github.com/luiscosio/muInference.git
+cd muInference
+git checkout buildroot-enclave
+
+# Create Python virtual environment
+python3 -m venv ~/muinference-venv
+source ~/muinference-venv/bin/activate
+
+# Install dependencies
+pip install pycryptodome torch transformers accelerate
+
+# Terminal 1: Start enclave server
+python external/muinference/rootfs_overlay/opt/enclave_server.py
+
+# Terminal 2: Connect with host proxy
+source ~/muinference-venv/bin/activate
+python scripts/host_proxy_and_attest.py --port 9000
+
+# Type prompts and get responses!
+```
+
+### Option B: Full Buildroot VM (30-60 minutes first build)
+
+Build and run the complete minimal Linux VM:
+
+```bash
+# 1. Install system dependencies (Ubuntu/Debian)
+sudo apt update
+sudo apt install -y build-essential git wget cpio unzip rsync bc \
+    libncurses5-dev libssl-dev python3 python3-pip python3-venv \
+    qemu-system-x86
+
+# 2. Clone repository
+git clone https://github.com/luiscosio/muInference.git
+cd muInference
+git checkout buildroot-enclave
+
+# 3. Setup Python environment
+python3 -m venv ~/muinference-venv
+source ~/muinference-venv/bin/activate
+pip install pycryptodome torch transformers accelerate
+
+# 4. Make scripts executable
+chmod +x scripts/*.sh scripts/*.py
+
+# 5. Build Buildroot enclave (30-60 minutes first time)
+./scripts/build_buildroot_enclave.sh
+
+# 6. Run the VM (Terminal 1)
+./scripts/run_enclave_vm.sh
+
+# 7. Connect from host (Terminal 2)
+source ~/muinference-venv/bin/activate
+./scripts/host_proxy_and_attest.py --port 10000
+```
+
+### Option C: Run E2E Test
+
+Automated test that starts server, connects, and runs inference:
+
+```bash
+source ~/muinference-venv/bin/activate
+python test/e2e_test.py
+```
+
 ## Overview
 
 This project provides:
@@ -34,167 +107,81 @@ This project provides:
 
 ```
 muinference/
-├── buildroot/              # Buildroot checkout (created by build script)
 ├── external/
-│   └── muinference/        # Buildroot external tree
-│       ├── Config.in
-│       ├── external.mk
-│       ├── external.desc
-│       ├── muinference_defconfig
+│   └── muinference/           # Buildroot external tree
 │       ├── board/x86_64/muinference/
-│       │   ├── linux.config
+│       │   ├── linux.config   # Minimal kernel config
 │       │   └── post_build.sh
-│       ├── package/muinference-enclave/
-│       │   ├── Config.in
-│       │   └── muinference-enclave.mk
-│       └── rootfs_overlay/
-│           ├── etc/muinference.conf
-│           └── opt/enclave_server.py
+│       ├── rootfs_overlay/
+│       │   ├── etc/muinference.conf
+│       │   └── opt/enclave_server.py  # Main enclave server
+│       └── muinference_defconfig
 ├── scripts/
-│   ├── build_buildroot_enclave.sh
-│   ├── run_enclave_vm.sh
-│   ├── host_proxy_and_attest.py
-│   ├── loc_compare.sh
-│   ├── service_compare.sh
-│   ├── security_test_muinference.sh
-│   ├── security_test_baseline.sh
-│   ├── fuzz_enclave_rpc.py
-│   └── exfil_timing_test.py
-└── baseline_stack/
-    ├── Dockerfile
-    ├── docker-compose.yml
-    ├── server.py
-    └── requirements.txt
-```
-
-## Quick Start
-
-### Prerequisites
-
-- Linux host with KVM support
-- QEMU with KVM (`qemu-system-x86_64`)
-- Git
-- Build tools (`make`, `gcc`, etc.)
-- Python 3.8+ with `pycryptodome`
-- (Optional) NVIDIA GPU with VFIO setup for GPU passthrough
-- (Optional) Docker for baseline comparison
-
-### 1. Build the Enclave
-
-```bash
-# Make scripts executable
-chmod +x scripts/*.sh scripts/*.py
-
-# Build Buildroot enclave (takes 30-60 minutes first time)
-./scripts/build_buildroot_enclave.sh
-```
-
-### 2. Run the Enclave VM
-
-```bash
-# Start the enclave VM (CPU-only mode)
-./scripts/run_enclave_vm.sh
-
-# With more resources
-./scripts/run_enclave_vm.sh -m 16384 -c 8
-
-# With GPU passthrough (requires VFIO setup)
-./scripts/run_enclave_vm.sh -g 0000:3b:00.0
-```
-
-### 3. Connect from Host
-
-In a separate terminal:
-
-```bash
-# Install host dependencies
-pip install pycryptodome
-
-# Connect to enclave
-./scripts/host_proxy_and_attest.py
-
-# With custom settings
-./scripts/host_proxy_and_attest.py --port 10000 --rate-kb 5
-```
-
-### 4. Run Security Comparisons
-
-```bash
-# Compare lines of code
-./scripts/loc_compare.sh
-
-# Compare network services
-./scripts/service_compare.sh
-
-# Security scan muinference
-./scripts/security_test_muinference.sh
-
-# Security scan baseline
-cd baseline_stack && docker build -t baseline-llama-3.2-3b .
-./scripts/security_test_baseline.sh
-
-# Demonstrate exfil timing
-./scripts/exfil_timing_test.py
-
-# Fuzz test the RPC protocol
-./scripts/fuzz_enclave_rpc.py --iterations 100
+│   ├── build_buildroot_enclave.sh     # Build the VM
+│   ├── run_enclave_vm.sh              # Run with QEMU
+│   ├── host_proxy_and_attest.py       # Host-side proxy
+│   ├── exfil_timing_test.py           # Bandwidth analysis
+│   └── fuzz_enclave_rpc.py            # Protocol fuzzer
+├── baseline_stack/                     # Docker baseline for comparison
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   └── server.py
+└── test/
+    └── e2e_test.py                    # End-to-end test
 ```
 
 ## Protocol
 
 The enclave uses a simple length-prefixed JSON protocol:
 
-1. **Attestation**: Enclave sends `{"measurement": "<sha256>"}`
-2. **Unlock**: Host sends AES-GCM encrypted token
-3. **Ready**: Enclave responds `{"status": "ready"}`
-4. **Inference**: Host sends `{"prompt": "...", "max_new_tokens": N}`
-5. **Response**: Enclave returns `{"completion": "...", "elapsed_ms": N}`
+```
+1. Enclave → Host: {"measurement": "<sha256>"}     # Attestation
+2. Host → Enclave: <AES-GCM encrypted token>       # Unlock
+3. Enclave → Host: {"status": "ready"}             # Ready
+4. Host → Enclave: {"prompt": "...", "max_new_tokens": N}  # Request
+5. Enclave → Host: {"completion": "...", "elapsed_ms": N}  # Response
+```
+
+## Security Analysis Tools
+
+```bash
+# Compare lines of code (attack surface)
+./scripts/loc_compare.sh
+
+# Analyze exfiltration timing
+python scripts/exfil_timing_test.py
+
+# Fuzz test the RPC protocol
+python scripts/fuzz_enclave_rpc.py --iterations 100
+
+# Security scan (requires trivy)
+./scripts/security_test_muinference.sh
+./scripts/security_test_baseline.sh
+```
 
 ## Model Setup
 
-The model is automatically downloaded from Hugging Face on first run. To pre-download:
+The model auto-downloads from Hugging Face on first run. To pre-download:
 
 ```bash
-# Pre-download model weights (recommended)
 pip install huggingface_hub
 huggingface-cli download unsloth/Llama-3.2-3B-Instruct
-
-# Or use Python
-python -c "from transformers import AutoModelForCausalLM; AutoModelForCausalLM.from_pretrained('unsloth/Llama-3.2-3B-Instruct')"
 ```
 
-For offline/air-gapped deployment:
+For offline deployment, download to a local directory:
 
 ```bash
-# Download to local directory
 huggingface-cli download unsloth/Llama-3.2-3B-Instruct --local-dir ./models/Llama-3.2-3B-Instruct
-
-# For VM with 9p mount
-./scripts/run_enclave_vm.sh --model-dir ./models
-
-# Inside enclave, mount with:
-mount -t 9p -o trans=virtio models /opt/models
-
-# Set MODEL_PATH environment variable
-export MODEL_PATH=/opt/models/Llama-3.2-3B-Instruct
+export MODEL_PATH=./models/Llama-3.2-3B-Instruct
 ```
 
-For the baseline Docker stack:
-```bash
-# The baseline will auto-download from HuggingFace
-cd baseline_stack && docker-compose up
-
-# Or mount cached weights
-docker-compose up  # Uses ~/.cache/huggingface mount
-```
-
-## GPU Passthrough
+## GPU Passthrough (Optional)
 
 For NVIDIA GPU passthrough:
 
-1. **Enable IOMMU** in BIOS and kernel (`intel_iommu=on` or `amd_iommu=on`)
+1. Enable IOMMU in BIOS and kernel (`intel_iommu=on` or `amd_iommu=on`)
 
-2. **Unbind GPU from host driver**:
+2. Unbind GPU from host driver:
 ```bash
 GPU_BDF="0000:3b:00.0"  # Your GPU's PCI address
 echo "$GPU_BDF" > /sys/bus/pci/devices/$GPU_BDF/driver/unbind
@@ -202,29 +189,9 @@ echo "vfio-pci" > /sys/bus/pci/devices/$GPU_BDF/driver_override
 echo "$GPU_BDF" > /sys/bus/pci/drivers/vfio-pci/bind
 ```
 
-3. **Run VM with GPU**:
+3. Run VM with GPU:
 ```bash
 ./scripts/run_enclave_vm.sh -g 0000:3b:00.0
-```
-
-## Configuration
-
-### Enclave Configuration (`/etc/muinference.conf`)
-
-```ini
-listen_port=9000
-max_egress_rate_kbps=5
-max_response_tokens=2048
-```
-
-### Host Proxy Options
-
-```bash
-./scripts/host_proxy_and_attest.py \
-    --host 127.0.0.1 \
-    --port 10000 \
-    --rate-kb 5 \
-    --expected-measurement <hash>
 ```
 
 ## Security Model
@@ -251,49 +218,50 @@ At 5 KB/s bandwidth limit:
 | LLaMA-70B (FP16) | 140 GB | ~324 days |
 | GPT-3 175B (FP16) | 350 GB | ~2.2 years |
 
-## Development
+## Configuration
 
-### Customizing the Kernel
+### Enclave Server
 
-Edit `external/muinference/board/x86_64/muinference/linux.config` and rebuild.
+Environment variables:
+- `MODEL_PATH`: Path to model weights (default: downloads from HuggingFace)
+- `ENCLAVE_PORT`: Listen port (default: 9000)
 
-### Adding Packages
-
-1. Create package in `external/muinference/package/<name>/`
-2. Add to `Config.in`
-3. Enable in defconfig
-4. Rebuild
-
-### Moving to Production
-
-For production deployment:
-
-1. Replace Python server with Rust binary (llama.cpp)
-2. Enable TPM-based attestation
-3. Use hardware security module for key storage
-4. Implement proper key derivation
-5. Add monitoring and audit logging
-
-## Comparison with Baseline
-
-Run the comparison tools to see the security improvements:
+### Host Proxy
 
 ```bash
-# LOC comparison
-./scripts/loc_compare.sh
+./scripts/host_proxy_and_attest.py \
+    --host 127.0.0.1 \
+    --port 9000 \
+    --rate-kb 5 \
+    --expected-measurement <hash>
+```
 
-# Output shows muinference has ~10x fewer lines of code
+## Troubleshooting
 
-# Service comparison
-./scripts/service_compare.sh
+### WSL/Linux: "externally-managed-environment" error
 
-# Output shows single port vs multiple services
+Create venv in Linux filesystem, not Windows mount:
+```bash
+python3 -m venv ~/muinference-venv
+source ~/muinference-venv/bin/activate
+pip install pycryptodome torch transformers accelerate
+```
 
-# Vulnerability scan
-./scripts/security_test_muinference.sh
-./scripts/security_test_baseline.sh
+### Model download slow/fails
 
-# Compare CVE counts and attack surface
+Pre-download the model:
+```bash
+pip install huggingface_hub
+huggingface-cli download unsloth/Llama-3.2-3B-Instruct
+```
+
+### QEMU fails to start
+
+Ensure KVM is available:
+```bash
+sudo apt install qemu-system-x86 qemu-kvm
+sudo usermod -aG kvm $USER
+# Log out and back in
 ```
 
 ## License
