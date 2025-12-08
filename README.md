@@ -26,8 +26,9 @@ cd muInference
 git checkout buildroot-enclave
 
 # Create Python virtual environment
-python3 -m venv ~/muinference-venv
-source ~/muinference-venv/bin/activate
+python -m venv venv
+source venv/bin/activate  # Linux/macOS
+# or: venv\Scripts\activate  # Windows
 
 # Install dependencies
 pip install pycryptodome torch transformers accelerate
@@ -36,15 +37,37 @@ pip install pycryptodome torch transformers accelerate
 python external/muinference/rootfs_overlay/opt/enclave_server.py
 
 # Terminal 2: Connect with host proxy
-source ~/muinference-venv/bin/activate
 python scripts/host_proxy_and_attest.py --port 9000
 
 # Type prompts and get responses!
 ```
 
-### Option B: Full Buildroot VM (30-60 minutes first build)
+### Option B: Build with Docker (Recommended)
 
-Build and run the complete minimal Linux VM:
+Build everything using Docker - no WSL or Linux required:
+
+```bash
+# Clone repository
+git clone https://github.com/luiscosio/muInference.git
+cd muInference
+git checkout buildroot-enclave
+
+# Build the Buildroot enclave VM (first build takes 30-60 min)
+docker compose -f docker-compose.build.yml run buildroot
+
+# Run LOC comparison
+docker compose -f docker-compose.build.yml run tools loc
+
+# Run security scan
+docker compose -f docker-compose.build.yml run tools security
+
+# Run all analyses
+docker compose -f docker-compose.build.yml run tools all
+```
+
+### Option C: Full Buildroot VM on Linux
+
+Build and run the complete minimal Linux VM (requires native Linux):
 
 ```bash
 # 1. Install system dependencies (Ubuntu/Debian)
@@ -77,12 +100,12 @@ source ~/muinference-venv/bin/activate
 ./scripts/host_proxy_and_attest.py --port 10000
 ```
 
-### Option C: Run E2E Test
+### Option D: Run E2E Test
 
 Automated test that starts server, connects, and runs inference:
 
 ```bash
-source ~/muinference-venv/bin/activate
+# With venv activated
 python test/e2e_test.py
 ```
 
@@ -107,10 +130,15 @@ This project provides:
 
 ```
 muinference/
+├── docker/
+│   ├── Dockerfile.buildroot    # Buildroot build environment
+│   ├── Dockerfile.tools        # LOC/security analysis tools
+│   └── analyze.sh              # Analysis entrypoint script
+├── docker-compose.build.yml    # Build orchestration
 ├── external/
-│   └── muinference/           # Buildroot external tree
+│   └── muinference/            # Buildroot external tree
 │       ├── board/x86_64/muinference/
-│       │   ├── linux.config   # Minimal kernel config
+│       │   ├── linux.config    # Minimal kernel config
 │       │   └── post_build.sh
 │       ├── rootfs_overlay/
 │       │   ├── etc/muinference.conf
@@ -145,18 +173,17 @@ The enclave uses a simple length-prefixed JSON protocol:
 ## Security Analysis Tools
 
 ```bash
-# Compare lines of code (attack surface)
-./scripts/loc_compare.sh
+# Using Docker (recommended)
+docker compose -f docker-compose.build.yml run tools loc       # LOC comparison
+docker compose -f docker-compose.build.yml run tools security  # Security scan
+docker compose -f docker-compose.build.yml run tools all       # All analyses
 
-# Analyze exfiltration timing
-python scripts/exfil_timing_test.py
-
-# Fuzz test the RPC protocol
-python scripts/fuzz_enclave_rpc.py --iterations 100
-
-# Security scan (requires trivy)
-./scripts/security_test_muinference.sh
-./scripts/security_test_baseline.sh
+# Native Linux (alternative)
+./scripts/loc_compare.sh                      # Compare lines of code
+python scripts/exfil_timing_test.py           # Analyze exfiltration timing
+python scripts/fuzz_enclave_rpc.py --iterations 100  # Fuzz test RPC
+./scripts/security_test_muinference.sh        # Security scan (requires trivy)
+./scripts/security_test_baseline.sh           # Baseline security scan
 ```
 
 ## Model Setup
@@ -238,6 +265,14 @@ Environment variables:
 
 ## Troubleshooting
 
+### Docker build fails
+
+Make sure Docker Desktop is running:
+```bash
+docker --version
+docker compose version
+```
+
 ### WSL/Linux: "externally-managed-environment" error
 
 Create venv in Linux filesystem, not Windows mount:
@@ -245,6 +280,22 @@ Create venv in Linux filesystem, not Windows mount:
 python3 -m venv ~/muinference-venv
 source ~/muinference-venv/bin/activate
 pip install pycryptodome torch transformers accelerate
+```
+
+### WSL: "PATH contains spaces" error
+
+Run builds from a native Linux path, not /mnt/c or /mnt/e:
+```bash
+mkdir -p ~/muinference-build
+cd ~/muinference-build
+git clone -b buildroot-enclave https://github.com/luiscosio/muInference.git
+cd muInference
+./scripts/build_buildroot_enclave.sh
+```
+
+Or use Docker (recommended - avoids all WSL issues):
+```bash
+docker compose -f docker-compose.build.yml run buildroot
 ```
 
 ### Model download slow/fails

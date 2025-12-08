@@ -1,0 +1,63 @@
+# docker-compose.build.yml
+#
+# Docker Compose for building and analyzing muinference
+#
+# Usage:
+#   # Build the Buildroot enclave VM
+#   docker compose -f docker-compose.build.yml run buildroot
+#
+#   # Run LOC comparison
+#   docker compose -f docker-compose.build.yml run tools loc
+#
+#   # Run security scan
+#   docker compose -f docker-compose.build.yml run tools security
+#
+#   # Run all analyses
+#   docker compose -f docker-compose.build.yml run tools all
+
+services:
+  # Buildroot builder - creates the minimal Linux VM
+  buildroot:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.buildroot
+    volumes:
+      # Persist Buildroot build cache for faster rebuilds
+      - buildroot-cache:/home/builder/muinference/buildroot
+      # Output directory for built images
+      - ./output:/home/builder/muinference/output
+    environment:
+      - BUILDROOT_DL_DIR=/home/builder/muinference/buildroot/dl
+
+  # Analysis tools (LOC, security scans)
+  tools:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.tools
+    volumes:
+      - .:/workspace:ro
+      # Mount Docker socket for image scanning
+      - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /workspace
+
+  # Baseline inference server (for comparison)
+  baseline:
+    build:
+      context: ./baseline_stack
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - MODEL_PATH=${MODEL_PATH:-}
+      - DEMO_MODE=${DEMO_MODE:-true}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  buildroot-cache:
+    name: muinference-buildroot-cache
