@@ -39,3 +39,6 @@ models/
 
 # Logs
 *.log
+
+# Claude Code
+.claude/

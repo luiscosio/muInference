@@ -1,6 +1,6 @@
 # muinference
 
-**Buildroot-based μEnclave for SL5-style GPU Inference**
+**Buildroot-based Weight Enclave for SL5-style GPU Inference**
 
 muinference implements a minimal Weight Enclave for secure AI model inference, following the SL5 (Security Level 5) security model. The host system is treated as untrusted; only the enclave handles model weights.
 
@@ -19,7 +19,7 @@ The key security benefit of muinference is the **radical reduction in attack sur
 
 ### Full Stack Comparison
 
-| Component | μEnclave | Typical Inference Server |
+| Component | muEnclave | Typical Inference Server |
 |-----------|----------|--------------------------|
 | **Base OS** | Buildroot + BusyBox | Ubuntu 22.04 Server |
 | OS Packages | ~10-20 | ~500-800 |
@@ -44,22 +44,14 @@ The key security benefit of muinference is the **radical reduction in attack sur
 | vLLM | ~100K | GitHub |
 | Transformers | ~500K | GitHub |
 
-### Run Attack Surface Analysis
-
-```bash
-# Full attack surface comparison (recommended)
-docker compose -f docker-compose.build.yml run tools attack
-
-# Custom code LOC only
-docker compose -f docker-compose.build.yml run tools loc
-
-# Vulnerability scan
-docker compose -f docker-compose.build.yml run tools security
-```
-
 ## Quick Start
 
-### Option A: Quick Test (No VM, ~5 minutes)
+### Prerequisites
+
+- Docker Desktop (Windows, macOS, or Linux)
+- Python 3.10+ with pip (for local testing)
+
+### Option A: Quick Test (No VM)
 
 Test the enclave server directly without building the full Buildroot VM:
 
@@ -67,7 +59,6 @@ Test the enclave server directly without building the full Buildroot VM:
 # Clone and enter directory
 git clone https://github.com/luiscosio/muInference.git
 cd muInference
-git checkout buildroot-enclave
 
 # Create Python virtual environment
 python -m venv venv
@@ -86,62 +77,26 @@ python scripts/host_proxy_and_attest.py --port 9000
 # Type prompts and get responses!
 ```
 
-### Option B: Build with Docker (Recommended)
+### Option B: Full Build with Docker
 
-Build everything using Docker - no WSL or Linux required:
+Build everything using Docker (includes Buildroot VM):
 
 ```bash
 # Clone repository
 git clone https://github.com/luiscosio/muInference.git
 cd muInference
-git checkout buildroot-enclave
 
-# Build the Buildroot enclave VM (first build takes 30-60 min)
+# Build the Buildroot enclave VM (first build: 30-60 min, cached after)
 docker compose -f docker-compose.build.yml run buildroot
 
-# Run attack surface analysis (recommended)
+# Run attack surface analysis
 docker compose -f docker-compose.build.yml run tools attack
 
 # Run security scan
 docker compose -f docker-compose.build.yml run tools security
 ```
 
-### Option C: Full Buildroot VM on Linux
-
-Build and run the complete minimal Linux VM (requires native Linux):
-
-```bash
-# 1. Install system dependencies (Ubuntu/Debian)
-sudo apt update
-sudo apt install -y build-essential git wget cpio unzip rsync bc \
-    libncurses5-dev libssl-dev python3 python3-pip python3-venv \
-    qemu-system-x86
-
-# 2. Clone repository
-git clone https://github.com/luiscosio/muInference.git
-cd muInference
-git checkout buildroot-enclave
-
-# 3. Setup Python environment
-python3 -m venv ~/muinference-venv
-source ~/muinference-venv/bin/activate
-pip install pycryptodome torch transformers accelerate
-
-# 4. Make scripts executable
-chmod +x scripts/*.sh scripts/*.py
-
-# 5. Build Buildroot enclave (30-60 minutes first time)
-./scripts/build_buildroot_enclave.sh
-
-# 6. Run the VM (Terminal 1)
-./scripts/run_enclave_vm.sh
-
-# 7. Connect from host (Terminal 2)
-source ~/muinference-venv/bin/activate
-./scripts/host_proxy_and_attest.py --port 10000
-```
-
-### Option D: Run E2E Test
+### Option C: Run E2E Test
 
 Automated test that starts server, connects, and runs inference:
 
@@ -150,11 +105,29 @@ Automated test that starts server, connects, and runs inference:
 python test/e2e_test.py
 ```
 
+## Caching
+
+muinference uses Docker's native caching:
+
+- **Docker images**: Built once, reused automatically
+- **Buildroot cache**: Stored in `muinference-buildroot-cache` Docker volume
+- **Model weights**: Cached by HuggingFace in `~/.cache/huggingface`
+
+To force a full rebuild:
+```bash
+docker compose -f docker-compose.build.yml build --no-cache buildroot
+```
+
+To clear the Buildroot cache:
+```bash
+docker volume rm muinference-buildroot-cache
+```
+
 ## Overview
 
 This project provides:
 
-1. **μEnclave**: A Buildroot-based minimal Linux VM that runs GPU inference with a radically reduced attack surface
+1. **muEnclave**: A Buildroot-based minimal Linux VM that runs GPU inference with a radically reduced attack surface
 2. **Host Proxy**: Bandwidth-limited proxy with attestation for communicating with the enclave
 3. **Baseline Stack**: Realistic Docker-based inference for security comparison
 4. **Security Tools**: Scripts for comparing attack surface and running security tests
@@ -189,7 +162,6 @@ muinference/
 │       └── muinference_defconfig
 ├── scripts/
 │   ├── build_buildroot_enclave.sh    # Build the VM
-│   ├── run_enclave_vm.sh             # Run with QEMU
 │   ├── host_proxy_and_attest.py      # Host-side proxy
 │   ├── exfil_timing_test.py          # Bandwidth analysis
 │   └── fuzz_enclave_rpc.py           # Protocol fuzzer
@@ -206,28 +178,27 @@ muinference/
 The enclave uses a simple length-prefixed JSON protocol:
 
 ```
-1. Enclave → Host: {"measurement": "<sha256>"}     # Attestation
-2. Host → Enclave: <AES-GCM encrypted token>       # Unlock
-3. Enclave → Host: {"status": "ready"}             # Ready
-4. Host → Enclave: {"prompt": "...", "max_new_tokens": N}  # Request
-5. Enclave → Host: {"completion": "...", "elapsed_ms": N}  # Response
+1. Enclave -> Host: {"measurement": "<sha256>"}     # Attestation
+2. Host -> Enclave: <AES-GCM encrypted token>       # Unlock
+3. Enclave -> Host: {"status": "ready"}             # Ready
+4. Host -> Enclave: {"prompt": "...", "max_new_tokens": N}  # Request
+5. Enclave -> Host: {"completion": "...", "elapsed_ms": N}  # Response
 ```
 
-## Security Analysis Tools
+## Security Analysis
 
 ```bash
-# Using Docker (recommended)
-docker compose -f docker-compose.build.yml run tools attack    # Full attack surface analysis
-docker compose -f docker-compose.build.yml run tools loc       # Custom code LOC only
-docker compose -f docker-compose.build.yml run tools security  # Vulnerability scan
-docker compose -f docker-compose.build.yml run tools all       # All analyses
+# Full attack surface analysis (recommended)
+docker compose -f docker-compose.build.yml run tools attack
 
-# Native Linux (alternative)
-./scripts/loc_compare.sh                      # Compare lines of code
-python scripts/exfil_timing_test.py           # Analyze exfiltration timing
-python scripts/fuzz_enclave_rpc.py --iterations 100  # Fuzz test RPC
-./scripts/security_test_muinference.sh        # Security scan (requires trivy)
-./scripts/security_test_baseline.sh           # Baseline security scan
+# Custom code LOC only
+docker compose -f docker-compose.build.yml run tools loc
+
+# Vulnerability scan
+docker compose -f docker-compose.build.yml run tools security
+
+# All analyses
+docker compose -f docker-compose.build.yml run tools all
 ```
 
 ## Model Setup
@@ -244,25 +215,6 @@ For offline deployment, download to a local directory:
 ```bash
 huggingface-cli download unsloth/Llama-3.2-3B-Instruct --local-dir ./models/Llama-3.2-3B-Instruct
 export MODEL_PATH=./models/Llama-3.2-3B-Instruct
-```
-
-## GPU Passthrough (Optional)
-
-For NVIDIA GPU passthrough:
-
-1. Enable IOMMU in BIOS and kernel (`intel_iommu=on` or `amd_iommu=on`)
-
-2. Unbind GPU from host driver:
-```bash
-GPU_BDF="0000:3b:00.0"  # Your GPU's PCI address
-echo "$GPU_BDF" > /sys/bus/pci/devices/$GPU_BDF/driver/unbind
-echo "vfio-pci" > /sys/bus/pci/devices/$GPU_BDF/driver_override
-echo "$GPU_BDF" > /sys/bus/pci/drivers/vfio-pci/bind
-```
-
-3. Run VM with GPU:
-```bash
-./scripts/run_enclave_vm.sh -g 0000:3b:00.0
 ```
 
 ## Security Model
@@ -300,7 +252,7 @@ Environment variables:
 ### Host Proxy
 
 ```bash
-./scripts/host_proxy_and_attest.py \
+python scripts/host_proxy_and_attest.py \
     --host 127.0.0.1 \
     --port 9000 \
     --rate-kb 5 \
@@ -317,31 +269,6 @@ docker --version
 docker compose version
 ```
 
-### WSL/Linux: "externally-managed-environment" error
-
-Create venv in Linux filesystem, not Windows mount:
-```bash
-python3 -m venv ~/muinference-venv
-source ~/muinference-venv/bin/activate
-pip install pycryptodome torch transformers accelerate
-```
-
-### WSL: "PATH contains spaces" error
-
-Run builds from a native Linux path, not /mnt/c or /mnt/e:
-```bash
-mkdir -p ~/muinference-build
-cd ~/muinference-build
-git clone -b buildroot-enclave https://github.com/luiscosio/muInference.git
-cd muInference
-./scripts/build_buildroot_enclave.sh
-```
-
-Or use Docker (recommended - avoids all WSL issues):
-```bash
-docker compose -f docker-compose.build.yml run buildroot
-```
-
 ### Model download slow/fails
 
 Pre-download the model:
@@ -350,13 +277,15 @@ pip install huggingface_hub
 huggingface-cli download unsloth/Llama-3.2-3B-Instruct
 ```
 
-### QEMU fails to start
+### Clear all caches and rebuild
 
-Ensure KVM is available:
 ```bash
-sudo apt install qemu-system-x86 qemu-kvm
-sudo usermod -aG kvm $USER
-# Log out and back in
+# Remove Docker images and volumes
+docker compose -f docker-compose.build.yml down --rmi all --volumes
+
+# Rebuild from scratch
+docker compose -f docker-compose.build.yml build --no-cache
+docker compose -f docker-compose.build.yml run buildroot
 ```
 
 ## License

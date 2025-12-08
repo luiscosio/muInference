@@ -6,14 +6,14 @@
 #   # Build the Buildroot enclave VM
 #   docker compose -f docker-compose.build.yml run buildroot
 #
-#   # Run LOC comparison
-#   docker compose -f docker-compose.build.yml run tools loc
+#   # Run attack surface analysis
+#   docker compose -f docker-compose.build.yml run tools attack
 #
 #   # Run security scan
 #   docker compose -f docker-compose.build.yml run tools security
 #
-#   # Run all analyses
-#   docker compose -f docker-compose.build.yml run tools all
+#   # Force rebuild (no cache)
+#   docker compose -f docker-compose.build.yml build --no-cache buildroot
 
 services:
   # Buildroot builder - creates the minimal Linux VM
@@ -23,11 +23,11 @@ services:
       dockerfile: docker/Dockerfile.buildroot
     volumes:
       # Persist Buildroot build cache for faster rebuilds
-      - buildroot-cache:/home/builder/muinference/buildroot
+      - buildroot-cache:/home/builder/buildroot-cache
       # Output directory for built images
       - ./output:/home/builder/muinference/output
     environment:
-      - BUILDROOT_DL_DIR=/home/builder/muinference/buildroot/dl
+      - BUILDROOT_CACHE_DIR=/home/builder/buildroot-cache
 
   # Analysis tools (LOC, security scans)
   tools:
@@ -61,3 +61,4 @@ services:
 volumes:
   buildroot-cache:
     name: muinference-buildroot-cache
+    external: false

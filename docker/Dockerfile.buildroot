@@ -1,17 +1,20 @@
 # Dockerfile for building Buildroot-based muinference enclave
 #
-# This container handles all Linux-specific build steps without requiring WSL.
+# This container handles all build steps. Uses Docker volume for caching.
 #
 # Usage:
-#   docker build -f docker/Dockerfile.buildroot -t muinference-builder .
-#   docker run -v $(pwd)/output:/output muinference-builder
+#   docker compose -f docker-compose.build.yml run buildroot
+#
+# Caching:
+#   - Buildroot source and build artifacts are cached in a Docker volume
+#   - Subsequent builds are much faster
+#   - To force full rebuild: docker compose -f docker-compose.build.yml build --no-cache buildroot
 
 FROM ubuntu:22.04
 
 LABEL maintainer="muinference"
 LABEL description="Buildroot build environment for muinference enclave"
 
-# Avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install Buildroot dependencies
@@ -26,6 +29,7 @@ RUN apt-get update && apt-get install -y \
     bc \
     libncurses5-dev \
     libssl-dev \
+    libelf-dev \
     python3 \
     python3-pip \
     file \
@@ -36,18 +40,15 @@ RUN apt-get update && apt-get install -y \
 ENV LANG=en_US.UTF-8
 ENV LC_ALL=en_US.UTF-8
 
-# Create build user (Buildroot doesn't like running as root)
-RUN useradd -m -s /bin/bash builder
 WORKDIR /home/builder
 
 # Copy project files
-COPY --chown=builder:builder . /home/builder/muinference
+COPY . /home/builder/muinference
 
-USER builder
+# Make scripts executable
+RUN chmod +x /home/builder/muinference/scripts/*.sh 2>/dev/null || true
+
 WORKDIR /home/builder/muinference
-
-# Build script
-RUN chmod +x scripts/*.sh 2>/dev/null || true
 
 # Default command: build the enclave
 CMD ["./scripts/build_buildroot_enclave.sh"]
