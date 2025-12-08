@@ -1,0 +1,50 @@
+# Ignore buildroot directory (will be cloned fresh during build)
+buildroot/
+
+# Ignore output directory
+output/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test outputs
+test/results.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Model weights
+*.bin
+*.safetensors
+*.gguf
+models/
+
+# Logs
+*.log
+
+# Git
+.git/
+.gitignore
+
+# Claude
+.claude/
