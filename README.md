@@ -375,8 +375,8 @@ The current implementation uses QEMU/KVM for VM isolation. The planned productio
 │  │  Buildroot VM   │  │  File Server    │  │  Serial Server  │  │
 │  │  (Guest Linux)  │  │                 │  │                 │  │
 │  │                 │  │                 │  │                 │  │
-│  │  PyTorch/       │  │                 │  │                 │  │
-│  │  Transformers   │  │                 │  │                 │  │
+│  │  Candle         │  │                 │  │                 │  │
+│  │                 │  │                 │  │                 │  │
 │  └────────┬────────┘  └─────────────────┘  └─────────────────┘  │
 │           │                                                     │
 │           ▼                                                     │
