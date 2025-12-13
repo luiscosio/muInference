@@ -1,6 +1,6 @@
 # muinference
 
-**Buildroot-based Weight Enclave for SL5-style GPU Inference**
+**Weight Enclave for SL5-style GPU Inference**
 
 muinference implements a minimal Weight Enclave for secure AI model inference, following the SL5 (Security Level 5) security model. The host system is treated as untrusted; only the enclave handles model weights.
 
