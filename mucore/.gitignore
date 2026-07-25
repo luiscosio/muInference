@@ -1,0 +1,6 @@
+# Build outputs. The bare-metal image embeds the 60 MB checkpoint, so nothing
+# in here belongs in git.
+build/
+
+# Logits dumps produced by the test suites.
+*.logits

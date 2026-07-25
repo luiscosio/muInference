@@ -1,0 +1,64 @@
+name: mucore
+
+# Replaces the old build-iso workflow, which built a Linux ISO that no longer
+# exists. This builds the engine and runs the determinism suite, which is the
+# property the project actually claims.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  determinism:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang lld llvm qemu-system-arm qemu-system-x86 xxd
+
+      - name: Fetch and verify model inputs
+        run: bash model/fetch.sh
+
+      - name: Verify the measured RoPE table
+        working-directory: mucore/tables
+        run: sha256sum -c rope_256x48.bin.sha256
+
+      - name: Build engine and variants
+        working-directory: mucore
+        run: make all variants ref
+
+      - name: Determinism suite
+        working-directory: mucore
+        run: bash tests/determinism.sh
+
+      - name: Parity against upstream llama2.c
+        working-directory: mucore
+        run: bash tests/parity.sh
+
+      - name: expf accuracy
+        working-directory: mucore
+        run: |
+          clang -std=c11 -O2 -fno-fast-math -ffp-contract=off -I. \
+            -o build/expf_acc tests/expf_accuracy.c -lm
+          ./build/expf_acc
+
+      # Cross-ISA is the load-bearing check. On an x86-64 runner this builds the
+      # hosted engine natively for x86-64 and the freestanding image for
+      # aarch64, so the comparison spans both instruction sets in the direction
+      # opposite to a macOS/arm64 developer machine.
+      - name: Freestanding aarch64 under QEMU
+        working-directory: mucore
+        run: make baremetal bm-run
+
+      - name: Freestanding x86-64 under QEMU
+        working-directory: mucore
+        run: make x86 x86-run
+
+      - name: Cross-environment bit-exactness
+        working-directory: mucore
+        run: bash tests/cross_env.sh
