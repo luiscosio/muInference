@@ -74,3 +74,19 @@ jobs:
       - name: Cross-environment bit-exactness
         working-directory: mucore
         run: bash tests/cross_env.sh
+
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang llvm cbmc
+
+      # No model inputs needed: every clause here is about the code, not the
+      # weights. S4a enumerates all 2^32 float32 inputs and takes a few seconds.
+      - name: Formal verification (SPEC.md clauses S1, S2, S3a, S4a)
+        working-directory: mucore
+        run: bash tests/verify.sh

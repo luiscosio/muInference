@@ -107,18 +107,21 @@ a PD with no device capabilities has no other channel.
 The mechanism behind (3) is visible in the object code: the correct build emits
 **zero** `fmla`/`fmadd` instructions; `-Ofast -march=native` emits **96**.
 
-### Accuracy
+### Accuracy — proven, not sampled
 
-Determinism is worthless without accuracy — a reproducibly wrong `exp` would
-pass every test above. `build/expf_acc` vs platform libm, 16M sample points:
+Determinism is worthless without accuracy: a reproducibly wrong `exp` would pass
+every test above. `make verify-s4a` enumerates **all 2³² binary32 inputs**, so
+this is a complete case analysis over the whole domain rather than a sample.
 
-| Range | bit-exact | ≤ 1 ULP | max error |
-|---|---|---|---|
-| `[-40, 0]` (softmax) | 98.87% | **100%** | 1 ULP |
-| `[-30, 30]` (SwiGLU) | 98.87% | **100%** | 1 ULP |
-| `[-87, 88]` (full) | 98.86% | **100%** | 1 ULP |
+```
+inputs in the normal domain   2,237,668,968
+bit-exact vs reference        2,236,503,555   (99.9479%)
+within 1 ulp                  2,237,668,968   (100.0000%)
+worst case                    1 ulp, at x = 0.0808606073 (0x3da59a3f)
+```
 
-`exp(0) == 1.0` exactly. Never worse than 1 ULP anywhere tested.
+`exp(0) == 1.0` exactly. Never worse than 1 ULP for any input. Runs in 3.4 s on
+8 threads. See [SPEC.md](../SPEC.md) clause S4a.
 
 ### Parity with upstream
 
@@ -166,6 +169,7 @@ host carries over because the code under test is identical.
 ../vendor/microkit/fetch.sh      # seL4 Microkit SDK (Stage C only)
 
 make && make test                # engine + determinism suite
+make verify                      # formal verification clauses (SPEC.md)
 make test-parity                 # vs upstream llama2.c
 make baremetal bm-run            # freestanding aarch64 under QEMU
 make x86 x86-run                 # freestanding x86-64 under QEMU
@@ -208,6 +212,14 @@ So the honest claim is: this runs on a formally verified microkernel, in a
 configuration whose functional correctness and integrity are proven, as a single
 protection domain with no device access. Not "formally verified isolation on
 server hardware", which nobody can currently claim.
+
+## Formal verification
+
+`make verify` discharges the clauses in [../SPEC.md](../SPEC.md) that have a
+method: CBMC for memory safety and arena bounds, a static LLVM IR check for
+exactly-rounded arithmetic, and an exhaustive enumeration for the `mu_expf`
+bound. 9 checks, all passing. What is still open is listed there rather than
+implied here.
 
 ## What is NOT proven
 

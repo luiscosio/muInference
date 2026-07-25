@@ -46,7 +46,8 @@ MODEL     := $(ROOT)/model/stories15M.bin
 TOKENIZER := $(ROOT)/model/tokenizer.bin
 ROPE      := $(ROOT)/mucore/tables/rope_256x48.bin
 
-.PHONY: all clean rope verify-rope test test-determinism test-parity ref variants
+.PHONY: all clean rope verify-rope test test-determinism test-parity ref variants \
+        verify verify-s1 verify-s3a verify-s4a
 
 all: $(BUILD)/mu
 
@@ -127,6 +128,34 @@ test-determinism: $(BUILD)/mu $(BUILD)/mu_o0 $(BUILD)/mu_o3 $(BUILD)/mu_os
 
 test-parity: $(BUILD)/mu $(BUILD)/run_ref
 	@bash $(ROOT)/mucore/tests/parity.sh
+
+# ---------------------------------------------------------------------------
+# Formal verification. Clause status is tracked in ../SPEC.md; nothing is
+# claimed there until it is green here.
+#
+#   verify-s1   CBMC: no undefined behaviour, arena bounds (S1 partial, S2)
+#   verify-s3a  static check that only exactly-rounded FP ops are emitted (S3a)
+#   verify-s4a  exhaustive check of mu_expf over all 2^32 inputs (S4a)
+# ---------------------------------------------------------------------------
+verify:
+	@bash $(ROOT)/mucore/tests/verify.sh
+
+CBMC_CHECKS := --bounds-check --pointer-check --pointer-overflow-check \
+               --div-by-zero-check --conversion-check \
+               --signed-overflow-check --unsigned-overflow-check \
+               --unwinding-assertions --no-standard-checks
+
+verify-s1:
+	@bash $(ROOT)/mucore/tests/verify.sh
+
+verify-s3a:
+	@bash $(ROOT)/mucore/tests/check_s3a.sh
+
+$(BUILD)/exhaustive_expf: $(ROOT)/mucore/tests/exhaustive_expf.c $(ROOT)/mucore/mu_math.h | $(BUILD)
+	$(CC) -std=c11 -O2 $(DETFLAGS) -I$(ROOT)/mucore -pthread -o $@ $< -lm
+
+verify-s4a: $(BUILD)/exhaustive_expf
+	@$(BUILD)/exhaustive_expf
 
 # ---------------------------------------------------------------------------
 # Stage B: freestanding aarch64 bare metal, run under QEMU.

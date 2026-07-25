@@ -69,7 +69,7 @@ So the engine uses nothing but mandated operations.
 
 | Original | Here |
 |---|---|
-| `expf` (softmax, SwiGLU) | degree-7 Taylor, range reduction, `2^k` as a bit pattern. **Within 1 ULP** of libm across 16M points. |
+| `expf` (softmax, SwiGLU) | degree-7 Taylor, range reduction, `2^k` as a bit pattern. **Within 1 ULP** of the true result for every one of the 2³² possible inputs — proven by enumeration, not sampled. |
 | `powf`, `cosf`, `sinf` (RoPE) | **gone from the runtime.** Precomputed offline into a table pinned by SHA-256. |
 | `sqrtf` | hardware instruction, IEEE-754 mandated |
 | `malloc`, `mmap`, OpenMP, RNG | one static arena, single-threaded, greedy `argmax` |
@@ -122,6 +122,7 @@ vendor/microkit/fetch.sh        # seL4 SDK, for the PD target only
 cd mucore
 
 make && make test               # build + determinism suite (7 tests)
+make verify                     # formal verification (SPEC.md clauses)
 make test-parity                # 5/5 identical to upstream llama2.c
 make baremetal bm-run           # freestanding aarch64 under QEMU
 make x86 x86-run                # freestanding x86-64 under QEMU
@@ -157,6 +158,20 @@ Neither hole is closeable by engineering, and either voids the claim.
 
 Also absent on purpose: Linux, a distro or ISO, temperature sampling, and
 batching.
+
+## Formal verification
+
+Reproducibility is tested. Some properties are now **proven**, machine-checked,
+covering all inputs rather than a sample. Status lives in [SPEC.md](SPEC.md);
+run it with `cd mucore && make verify`.
+
+| Clause | Claim | Status |
+|---|---|---|
+| S2 | The arena never overruns and blocks never overlap | ✅ proven |
+| S3a | Only exactly-rounded FP operations are used | ✅ proven |
+| S4a | `mu_expf` is within 1 ulp of the true result | ✅ proven, all 2³² inputs |
+| S1 | No undefined behaviour | 🟡 6 of 8 functions |
+| S3b, S4b, S4c, S5 | see SPEC.md | ⬜ open |
 
 ## What is not proven
 
