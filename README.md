@@ -1,134 +1,179 @@
 # μInference
 
-A small, auditable LLM inference engine whose output is a pure function of its
-inputs — provably independent of compiler, optimisation level, C library,
-linker, instruction set, floating point implementation, operating system, and
-kernel.
+A verifiable minimum inference engine for LLMs.
 
-Runs as a single seL4/Microkit protection domain on a formally verified
-microkernel, with no Linux, no GPU, and no device access.
+## Characteristics
+
+| | |
+|---|---|
+| **Verifiable** | Output is a pure function of its inputs. Verified bit-identical across 7 independent build and execution environments. |
+| **Minimal** | **692 lines** of runtime trusted code. No libc, no libm, no heap, no threads. |
+| **Reproducible** | Same logits from clang, gcc, `-O0` through `-O3`, aarch64, x86-64, bare metal, and seL4. |
+| **Isolated** | Runs as a single seL4 protection domain with no channels, no device access, no Linux. |
+| **Bounded** | Every allocation is a compile-time constant. 4.1 MB arena, no input can change it. |
+| **Measured** | Weights and the RoPE table are pinned by SHA-256 and linked into the image, so one hash covers code and data. |
 
 Derived from [llama2.c](https://github.com/karpathy/llama2.c) (MIT, Andrej
-Karpathy). The arithmetic is faithful to the original.
+Karpathy). The arithmetic is faithful to the original; output is byte-identical
+to it on 5/5 test prompts.
 
-## The result
+## Verifiability
 
-One `mu_core.c`, six environments, **identical logits down to the bit**.
-Fingerprint is SHA-256 over the raw float32 logits of every decode step
-(3,072,000 bytes: 24 steps × 32000 vocab × 4), hashed by `shasum`.
+One `mu_core.c`. Seven environments. Same logits, to the bit.
 
-| Environment | libc | linker | FP implementation |
-|---|---|---|---|
-| macOS arm64, Apple clang 21, `-O2` | libSystem | ld64 | Apple Silicon FPU |
-| macOS arm64, Apple clang 21, `-O0` | libSystem | ld64 | Apple Silicon FPU |
-| macOS arm64, Homebrew clang 22, `-O2` | libSystem | ld64 | Apple Silicon FPU |
-| aarch64-none-elf bare metal, QEMU | **none** | ld.lld | Apple Silicon FPU |
-| **x86-64 bare metal, QEMU** | **none** | ld.lld | **QEMU softfloat SSE** |
-| **seL4 / Microkit PD, aarch64** | **none** | ld.lld | Apple Silicon FPU |
+The fingerprint is SHA-256 over the raw float32 logits of every decode step
+(3,072,000 bytes: 24 steps × 32000 vocab × 4), hashed by `shasum` rather than by
+anything in this repo:
 
 ```
 9b78b92a305dc59611b5c53a04b538ae9c4ae18aea6c1fdbf6e45e9848b23bd2
 ```
 
-The x86-64 row matters most: a different LLVM backend (SSE, not NEON) executed
-by QEMU's own softfloat library. That makes it an independent floating point
-*implementation*, not another view of the same silicon.
+| # | Environment | libc | linker | FP implementation |
+|---|---|---|---|---|
+| 1 | hosted, clang, `-O2` | libSystem | ld64 | hardware FPU |
+| 2 | hosted, clang, `-O0` | libSystem | ld64 | hardware FPU |
+| 3 | hosted, second clang (different major version) | libSystem | ld64 | hardware FPU |
+| 4 | hosted, **GCC** | libSystem | ld64 | hardware FPU |
+| 5 | aarch64 bare metal, QEMU | **none** | ld.lld | hardware FPU |
+| 6 | **x86-64** bare metal, QEMU | **none** | ld.lld | **QEMU softfloat SSE** |
+| 7 | **seL4 / Microkit PD**, aarch64 | **none** | ld.lld | hardware FPU |
 
-## Why
+Rows 4 and 6 carry the most weight. GCC shares no frontend, optimiser or
+backend with clang. And QEMU's x86 TCG evaluates SSE through its own softfloat
+library rather than the host FPU, making it an independent floating point
+*implementation* rather than another view of the same silicon.
 
-Verifying LLM inference by re-execution needs an engine that produces the same
-bits twice. Production servers do not. Nondeterminism there is not floating
-point noise, it is **batch-invariance failure**: matmul, RMSNorm and attention
-change reduction strategy with batch shape, and batch shape depends on server
-load. Making vLLM deterministic costs 1.6–2× throughput.
+Row 7 is the target deployment: a protection domain on a formally verified
+microkernel, with no channels, no memory regions, no IRQs and no device
+mappings. Its entire authority is its own address space plus the debug console.
+
+## Why it's reproducible and vLLM isn't
+
+Nondeterminism in production serving is not floating point noise. It is
+**batch-invariance failure**: matmul, RMSNorm and attention change reduction
+strategy with batch shape, and batch shape depends on server load. Making vLLM
+deterministic costs 1.6–2× throughput.
 
 A single-stream engine has no batch-invariance problem to solve, so it gets
 determinism for free.
 
-Every scheme that checks an LLM's work needs a referee it can trust more than
-the thing being checked, and none of them has one. That is the gap here.
-
 ## How
 
 IEEE-754 clause 5.4.1 **mandates** correct rounding for `+ − × ÷ √`. Clause 9.2
-lists `exp`, `log`, `sin`, `cos`, `pow` as *recommended only*, which is why libm
-results differ between vendors, versions, and even between the scalar and
-vectorised paths of one library.
+makes `exp`, `log`, `sin`, `cos`, `pow` *recommended only* — which is why libm
+results differ between vendors, versions, and even vectorisation paths inside
+one library.
 
-So the core uses nothing but mandated operations:
+So the engine uses nothing but mandated operations.
 
 | Original | Here |
 |---|---|
-| `expf` (softmax, SwiGLU) | degree-7 Taylor, range reduction, `2^k` as a bit pattern. Only `+ − ×`. Within **1 ULP** of libm everywhere tested. |
-| `sqrtf` (RMSNorm) | hardware `fsqrt`, IEEE-754 mandated |
-| `powf`/`cosf`/`sinf` (RoPE) | **removed from the runtime.** Precomputed offline into a measured table, pinned by SHA-256. |
-| `malloc`/`calloc`/`mmap` | one static arena, no heap |
-| `#pragma omp parallel for` | removed; parallel reduction reorders accumulation |
-| temperature / top-p sampling | greedy `argmax`, no RNG |
+| `expf` (softmax, SwiGLU) | degree-7 Taylor, range reduction, `2^k` as a bit pattern. **Within 1 ULP** of libm across 16M points. |
+| `powf`, `cosf`, `sinf` (RoPE) | **gone from the runtime.** Precomputed offline into a table pinned by SHA-256. |
+| `sqrtf` | hardware instruction, IEEE-754 mandated |
+| `malloc`, `mmap`, OpenMP, RNG | one static arena, single-threaded, greedy `argmax` |
 
-Two compiler flags are load-bearing: `-fno-fast-math` (forbids reassociation)
-and `-ffp-contract=off` (forbids FMA, which rounds once where the source rounds
-twice). `-march` is pinned to a baseline rather than `native`.
+`-fno-fast-math` and `-ffp-contract=off` are part of the contract. FMA is
+forbidden because it rounds once where the source rounds twice.
 
-The negative control proves this is not cargo cult: building with
+**The claim is falsifiable, and the suite proves it.** Building with
 `-Ofast -march=native`, which is what upstream's Makefile uses, produces a
-**different** hash. The correct build emits **zero** FMA instructions; the
-`-Ofast` build emits 96.
+*different* hash. The correct build emits **zero** FMA instructions; that one
+emits **96**.
 
-## Layout
+## Minimum lines of code
+
+Runtime trusted surface — everything that touches a logit:
+
+| File | Lines |
+|---|---|
+| `mu_math.h` | 85 |
+| `mu_core.h` | 133 |
+| `mu_core.c` | 474 |
+| **Total** | **692** |
+
+For comparison, upstream `run.c` is 973 lines, and a vLLM + PyTorch + CUDA stack
+is several million with a closed compiler at the bottom of it.
+
+Hosts are swappable and not shared trusted surface: POSIX 159 lines, aarch64
+bare metal 173 C + 165 asm, x86-64 182 C + 183 asm, seL4 PD 157 lines. Only
+`hosts/` differs between deployments, which is why a determinism result measured
+in one carries over to the others.
+
+## Performance
+
+161 tok/s single-threaded on Apple Silicon (256 tokens in 1.59 s), with no BLAS,
+no SIMD intrinsics and no threading. Arena high-water mark 4,131,840 bytes,
+identical in all seven environments.
 
 ```
-mucore/            the engine. See mucore/README.md for full detail.
-  mu_math.h        deterministic expf / sqrtf. Read this first.
-  mu_core.h/.c     transformer, arena, tokenizer, argmax  (692 lines of code)
-  tables/          measured RoPE table + its SHA-256
-  hosts/posix/     development and testing harness
-  hosts/baremetal/ freestanding aarch64, semihosting
-  hosts/x86_64/    freestanding x86-64, PVH boot
-  hosts/microkit/  seL4 protection domain + .system description
-  tests/           determinism, cross-environment, parity, expf accuracy
-model/             fetch.sh + pinned SHA256SUMS (blobs not committed)
-vendor/llama2c/    upstream run.c, kept as the parity oracle, plus its LICENSE
-vendor/microkit/   fetch.sh for the seL4 Microkit SDK (not committed)
-documentation/     design.md — decisions and their justification
+$ mu -i "Lily found a shiny key" -n 100
+Lily found a shiny key in her room. She did not know what it was for, but she
+liked it. She put it in her pocket and went to play outside. She saw a big tree
+with a hole in it. She thought it was a good place to hide the key.
 ```
 
 ## Build
 
 ```sh
 model/fetch.sh                  # hash-verified model inputs
-vendor/microkit/fetch.sh        # seL4 Microkit SDK (for Stage C only)
+vendor/microkit/fetch.sh        # seL4 SDK, for the PD target only
 cd mucore
 
 make && make test               # build + determinism suite (7 tests)
-make test-parity                # vs upstream llama2.c
+make test-parity                # 5/5 identical to upstream llama2.c
 make baremetal bm-run           # freestanding aarch64 under QEMU
 make x86 x86-run                # freestanding x86-64 under QEMU
 make microkit mk-run            # seL4 / Microkit protection domain
-bash tests/cross_env.sh         # the six-environment comparison
+bash tests/cross_env.sh         # the seven-environment comparison
 ```
 
-Needs `clang`; for the freestanding and seL4 targets also
-`brew install qemu llvm lld`.
+Needs `clang`; for freestanding and seL4 targets also `brew install qemu llvm lld`.
 
-```sh
-./build/mu -m ../model/stories15M.bin -z ../model/tokenizer.bin \
-           -r tables/rope_256x48.bin -i "Once upon a time" -n 80
+## Layout
+
+```
+mucore/            the engine
+  mu_math.h        the determinism argument. Read this first.
+  mu_core.h/.c     transformer, arena, tokenizer, argmax
+  tables/          measured RoPE table + its SHA-256
+  hosts/           posix · baremetal · x86_64 · microkit
+  tests/           determinism · cross-environment · parity · expf accuracy
+model/             fetch.sh + pinned SHA256SUMS
+vendor/llama2c/    upstream run.c, kept as the parity oracle
+vendor/microkit/   fetch.sh for the seL4 Microkit SDK
+documentation/     design.md — decisions and why
 ```
 
 ## Scope
 
-Deliberately narrow. This is a small, safe, reproducible inference engine and
-nothing else.
+Small, safe, reproducible inference. Nothing else.
 
-Not included, on purpose: GPU support (it reintroduces signed vendor firmware
-that boots before your code and, on NVIDIA, a closed kernel compiler — both
-unavoidable holes in any verifiability claim), Linux, a distro or ISO,
-temperature sampling, batching, and any model larger than the 15M-parameter
-checkpoint the tests use.
+**No GPU, deliberately.** Any GPU path reintroduces signed vendor firmware
+(GSP/PSP) that boots before your code and cannot be substituted, and on NVIDIA a
+closed kernel compiler generating the machine code that computes your logits.
+Neither hole is closeable by engineering, and either voids the claim.
 
-`mucore/README.md` documents the measured results in full, including what is
-and is not proven about seL4's verification status in this configuration.
+Also absent on purpose: Linux, a distro or ISO, temperature sampling, and
+batching.
+
+## What is not proven
+
+- QEMU only. No run on real hardware.
+- Bit-identical *output* is demonstrated. Byte-identical *binaries* from
+  independent builders is a different property and is not done.
+- One checkpoint: stories15M, 15M parameters, seq_len 256. Untested at 7B.
+- Greedy sampling only. Temperature needs a specified seeded PRNG.
+- On seL4: the AArch64 configuration has functional correctness and integrity
+  proofs. Confidentiality is in progress, information flow is not proven, binary
+  verification covers AArch32/RISC-V64 not AArch64, no verified configuration on
+  any architecture includes an IOMMU, and verified means single core. So: *runs
+  on a formally verified microkernel as a single PD with no device access* — not
+  "formally verified isolation on server hardware", which nobody can claim.
+
+`mucore/README.md` has the full measured results. `documentation/design.md` has
+the reasoning behind each decision.
 
 ## License
 

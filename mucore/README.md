@@ -61,7 +61,7 @@ partial-sum tree.
 
 Host: macOS 26.5.2, Apple Silicon. Reproduced from a clean build.
 
-### Bit-exactness across six environments
+### Bit-exactness across seven environments
 
 `bash tests/cross_env.sh`. Fingerprint is SHA-256 of the raw float32 logits for
 every decode step (3,072,000 bytes: 24 steps × 32000 vocab × 4), hashed by
@@ -72,14 +72,17 @@ every decode step (3,072,000 bytes: 24 steps × 32000 vocab × 4), hashed by
 | macOS arm64, Apple clang 21, `-O2` | libSystem | ld64 | Apple Silicon FPU |
 | macOS arm64, Apple clang 21, `-O0` | libSystem | ld64 | Apple Silicon FPU |
 | macOS arm64, Homebrew clang 22, `-O2` | libSystem | ld64 | Apple Silicon FPU |
+| **macOS arm64, GCC 16.1.0, `-O2`** | libSystem | ld64 | Apple Silicon FPU |
 | aarch64-none-elf bare metal, QEMU cortex-a57 | **none** | ld.lld | Apple Silicon FPU |
 | **x86-64 bare metal, QEMU Nehalem** | **none** | ld.lld | **QEMU softfloat SSE** |
 | **seL4 / Microkit PD, aarch64, QEMU cortex-a53** | **none** | ld.lld | Apple Silicon FPU |
 
-All six: `9b78b92a305dc59611b5c53a04b538ae9c4ae18aea6c1fdbf6e45e9848b23bd2`
+All seven: `9b78b92a305dc59611b5c53a04b538ae9c4ae18aea6c1fdbf6e45e9848b23bd2`
 
-The x86-64 row is the strongest evidence: a different LLVM backend (SSE, not
-NEON) executed by QEMU's own softfloat library. An independent floating point
+Two rows carry the most weight. **GCC** shares no frontend, optimiser or backend
+with clang, so clang-vs-gcc agreement is a far stronger signal than clang-vs-clang
+across versions. And the **x86-64** row is a different LLVM backend (SSE, not
+NEON) executed by QEMU's own softfloat library: an independent floating point
 *implementation*, not another view of the same silicon.
 
 The seL4 row is the target configuration: one protection domain, no channels,

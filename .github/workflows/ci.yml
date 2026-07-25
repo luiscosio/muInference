@@ -28,6 +28,18 @@ jobs:
         working-directory: mucore/tables
         run: sha256sum -c rope_256x48.bin.sha256
 
+      # Report the toolchain before building, because the first CI failure here
+      # was a silent compiler substitution: `CC ?= clang` is a no-op against
+      # make's built-in CC=cc, so this job was quietly using gcc while the
+      # local runs used clang.
+      - name: Show toolchain
+        working-directory: mucore
+        run: |
+          echo "CC     -> $(make -s -p 2>/dev/null | awk -F' = ' '/^CC = /{print $2; exit}')"
+          clang --version | head -1
+          gcc --version | head -1
+          ld.lld --version | head -1
+
       - name: Build engine and variants
         working-directory: mucore
         run: make all variants ref

@@ -6,20 +6,22 @@
 # depend on the toolchain, the C library, the linker, the instruction set, the
 # floating point *implementation*, the operating system, or the kernel.
 #
-# Six environments, one mu_core.c, byte for byte:
+# Seven environments, one mu_core.c, byte for byte:
 #
-#   1. macOS arm64, Apple clang, libSystem, -O2
-#   2. macOS arm64, Apple clang, libSystem, -O0
-#   3. macOS arm64, Homebrew clang (different major version), -O2
-#   4. aarch64-none-elf freestanding, no libc, ld.lld, QEMU cortex-a57,
+#   1. hosted, default compiler, -O2                          (the reference)
+#   2. hosted, same compiler, -O0
+#   3. hosted, a second clang of a different major version
+#   4. hosted, GCC. A genuinely independent compiler: clang-vs-clang shares a
+#      frontend, an optimiser and a backend, clang-vs-gcc shares none of them.
+#   5. aarch64-none-elf freestanding, no libc, ld.lld, QEMU cortex-a57,
 #      own MMU setup, blobs linked into the image, semihosting I/O
-#   5. x86-64 freestanding, no libc, ld.lld, QEMU Nehalem. Different LLVM
+#   6. x86-64 freestanding, no libc, ld.lld, QEMU Nehalem. Different LLVM
 #      backend (SSE, not NEON) and QEMU's x86 TCG evaluates SSE through its own
 #      softfloat library, so this is an independent FP implementation rather
 #      than another view of the same silicon.
-#   6. seL4 / Microkit protection domain, aarch64, single core, no device caps
+#   7. seL4 / Microkit protection domain, aarch64, single core, no device caps
 #
-# Rows 4-6 must be produced first by their own make targets; each is skipped
+# Rows 5-7 must be produced first by their own make targets; each is skipped
 # with a clear note if its artifact is absent, rather than silently passing.
 #
 # Hashing is done by shasum, so the oracle is independent of the code tested.
@@ -53,9 +55,14 @@ echo
 emit() { "$1" -q -m "$MODEL" -z "$TOK" -r "$ROPE" -i "$PROMPT" -n "$STEPS" \
               --dump-logits "$2" >/dev/null 2>&1; }
 
+# Report the compiler actually used rather than hardcoding a name: this suite
+# runs on macOS and on Linux CI, where CC and the alternate compiler differ.
+ccname() { "$1" --version 2>/dev/null | head -1 | cut -c1-28; }
+CC1=$(ccname "${CC:-clang}")
+
 emit "$BUILD/mu" "$TMP/ref.logits"
 REFHASH=$(shasum -a 256 "$TMP/ref.logits" | awk '{print $1}')
-printf '  ----  %-34s %s\n' "hosted apple-clang -O2 (ref)" "$REFHASH"
+printf '  ----  %-34s %s\n' "hosted -O2 (ref) ${CC1:+[$CC1]}" "$REFHASH"
 
 check() {   # $1=label $2=file
   local h n r
@@ -68,8 +75,8 @@ check() {   # $1=label $2=file
 
 # --- 2, 3: other hosted builds ----------------------------------------
 if [[ -x "$BUILD/mu_o0" ]]; then
-  emit "$BUILD/mu_o0" "$TMP/o0.logits"; check "hosted apple-clang -O0" "$TMP/o0.logits"
-else skp "hosted apple-clang -O0" "not built"; fi
+  emit "$BUILD/mu_o0" "$TMP/o0.logits"; check "hosted -O0" "$TMP/o0.logits"
+else skp "hosted -O0" "not built"; fi
 
 if [[ -x "$BREW_CLANG" ]]; then
   [[ -x "$BUILD/mu_brewclang" ]] || "$BREW_CLANG" -std=c11 -O2 \
@@ -77,8 +84,14 @@ if [[ -x "$BREW_CLANG" ]]; then
       -march=armv8-a -I"$ROOT/mucore" -o "$BUILD/mu_brewclang" \
       "$ROOT/mucore/mu_core.c" "$ROOT/mucore/hosts/posix/main.c" 2>/dev/null
   emit "$BUILD/mu_brewclang" "$TMP/brew.logits"
-  check "hosted brew-clang -O2" "$TMP/brew.logits"
-else skp "hosted brew-clang -O2" "brew llvm absent"; fi
+  check "hosted second clang -O2" "$TMP/brew.logits"
+else skp "hosted second clang -O2" "no second clang"; fi
+
+# A genuinely independent compiler. clang-vs-clang across versions shares a
+# frontend, an optimiser and a backend; clang-vs-gcc shares none of them.
+if [[ -x "$BUILD/mu_altcc" ]]; then
+  emit "$BUILD/mu_altcc" "$TMP/altcc.logits"; check "hosted gcc -O2" "$TMP/altcc.logits"
+else skp "hosted gcc -O2" "gcc absent"; fi
 
 # --- 4: aarch64 bare metal --------------------------------------------
 check "baremetal aarch64 (qemu)" "$BUILD/bm/bm.logits"

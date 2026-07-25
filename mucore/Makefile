@@ -13,7 +13,15 @@
 # tree. That is the mechanism behind cross-machine divergence in ggml.
 
 ROOT      := $(abspath $(dir $(abspath $(lastword $(MAKEFILE_LIST))))..)
-CC        ?= clang
+
+# `CC ?= clang` does NOT work here: make has a built-in default of CC=cc, and
+# ?= treats a built-in as already set, so the assignment is a silent no-op. On
+# macOS cc happens to be clang so it looked fine; on Linux CI it resolved to
+# gcc. Testing $(origin) is the correct idiom: override the built-in default
+# but still respect a CC the caller set deliberately.
+ifeq ($(origin CC),default)
+  CC := clang
+endif
 
 DETFLAGS  := -fno-fast-math -ffp-contract=off -fno-unsafe-math-optimizations
 WARN      := -Wall -Wextra -Wno-unused-parameter
@@ -43,7 +51,15 @@ ROPE      := $(ROOT)/mucore/tables/rope_256x48.bin
 all: $(BUILD)/mu
 
 # Convenience aliases so the variants can be built by short name.
-variants: $(BUILD)/mu $(BUILD)/mu_o0 $(BUILD)/mu_o3 $(BUILD)/mu_os $(BUILD)/mu_ofast
+variants: $(BUILD)/mu $(BUILD)/mu_o0 $(BUILD)/mu_o3 $(BUILD)/mu_os $(BUILD)/mu_ofast \
+          $(BUILD)/mu_altcc
+
+# A second, genuinely independent compiler: different frontend, different
+# optimiser, different code generator. Clang-vs-clang across versions is a weak
+# check; clang-vs-gcc is a real one. Skipped rather than failed when absent, so
+# the build still works on a machine with only one compiler.
+ALTCC := $(firstword $(foreach c,gcc-16 gcc-15 gcc-14 gcc-13 gcc, \
+           $(if $(shell command -v $(c) 2>/dev/null),$(c))))
 
 $(BUILD):
 	@mkdir -p $(BUILD)
@@ -67,10 +83,33 @@ $(BUILD)/mu_os: $(CORE) $(HOST) | $(BUILD)
 $(BUILD)/mu_ofast: $(CORE) $(HOST) | $(BUILD)
 	$(CC) -std=c11 -Ofast -I$(ROOT)/mucore -march=native -o $@ $(CORE) $(HOST)
 
+$(BUILD)/mu_altcc: $(CORE) $(HOST) | $(BUILD)
+ifeq ($(ALTCC),)
+	@echo "  no second compiler found (gcc); skipping mu_altcc"
+else
+	$(ALTCC) -std=c11 -O2 $(DETFLAGS) -I$(ROOT)/mucore $(ISAFLAGS) -o $@ $(CORE) $(HOST)
+endif
+
 # Reference upstream binary, built the same careful way, for parity checks.
+#
+# Two concessions are needed to compile upstream run.c unmodified, and it is
+# kept byte-identical to upstream deliberately: patching the oracle would
+# undermine the point of having one.
+#
+#   -std=gnu11        run.c calls clock_gettime and uses CLOCK_REALTIME. On
+#                     glibc, -std=c11 is strict ISO mode, which switches off
+#                     _DEFAULT_SOURCE and hides every POSIX declaration. Apple
+#                     libc is more permissive, which is why this only failed on
+#                     Linux. gnu11 changes no floating point semantics.
+#   -include stdint.h run.c uses int8_t without including <stdint.h> and relies
+#                     on it arriving transitively, which glibc does not do.
+#
+# The FP flags are identical to ours, so the parity comparison still isolates
+# the arithmetic rather than the build.
 ref: $(BUILD)/run_ref
 $(BUILD)/run_ref: $(ROOT)/vendor/llama2c/run.c | $(BUILD)
-	$(CC) -std=c11 -O2 $(DETFLAGS) -o $@ $(ROOT)/vendor/llama2c/run.c -lm
+	$(CC) -std=gnu11 -O2 $(DETFLAGS) -include stdint.h \
+	  -o $@ $(ROOT)/vendor/llama2c/run.c -lm
 
 rope:
 	python3 $(ROOT)/mucore/tools/gen_rope.py --seq-len 256 --head-size 48 \
