@@ -25,13 +25,22 @@ echo "################ muInference formal verification ################"
 # ---------------------------------------------------------------- S1, S2
 echo
 echo "S1 / S2  no undefined behaviour, arena bounds   [CBMC, bounded model checking]"
+  printf '         cbmc %s\n' "$(cbmc --version 2>/dev/null | head -1)"
 if ! command -v cbmc >/dev/null 2>&1; then
   skp "cbmc not installed (brew install cbmc)"
 else
+  # --no-standard-checks only exists from CBMC 6.0. In 5.x the standard checks
+  # were off by default so the flag is unnecessary there, and passing it is a
+  # usage error. Ubuntu 24.04 ships 5.95, Homebrew ships 6.10, and CI failed on
+  # exactly this.
+  CBMC_MAJOR=$(cbmc --version 2>/dev/null | grep -oE '^[0-9]+' | head -1)
+  NOSTD=""
+  [ "${CBMC_MAJOR:-0}" -ge 6 ] 2>/dev/null && NOSTD="--no-standard-checks"
+
   CHECKS="--bounds-check --pointer-check --pointer-overflow-check
           --div-by-zero-check --conversion-check
           --signed-overflow-check --unsigned-overflow-check
-          --unwinding-assertions --no-standard-checks"
+          --unwinding-assertions $NOSTD"
   # harness:unwind[:extra-cbmc-args]
   #
   # Bounds are sized so every loop is fully unwound. --unwinding-assertions
