@@ -31,6 +31,14 @@ TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 CLANG="${CLANG:-$( [ -x /opt/homebrew/opt/llvm/bin/clang ] && echo /opt/homebrew/opt/llvm/bin/clang || echo clang )}"
 DET="-fno-fast-math -ffp-contract=off -fno-unsafe-math-optimizations"
 
+# Baseline ISA must match the host, or the compile fails outright. Hardcoding
+# armv8-a made this pass on a Mac and fail on an x86-64 CI runner.
+case "$(uname -m)" in
+  arm64|aarch64) ISA="-march=armv8-a"    ;;
+  x86_64|amd64)  ISA="-march=x86-64-v2"  ;;
+  *)             ISA=""                  ;;
+esac
+
 pass=0; fail=0
 ok()  { printf '  \033[32mPASS\033[0m  %s\n' "$1"; pass=$((pass+1)); }
 bad() { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; fail=$((fail+1)); }
@@ -38,14 +46,17 @@ bad() { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; fail=$((fail+1)); }
 echo
 echo "=== S3a: only exactly-rounded FP operations ======================"
 echo "compiler: $("$CLANG" --version | head -1)"
+echo "host:     $(uname -m)   baseline ISA: ${ISA:-none}"
 
 # Checked at every optimisation level, because vectorisation and fusion
 # decisions change with -O and a claim that only holds at -O2 is not a claim.
 for OPT in -O0 -O1 -O2 -O3 -Os; do
   IR="$TMP/core$OPT.ll"
-  if ! "$CLANG" -std=c11 $OPT $DET -march=armv8-a -I"$ROOT/mucore" \
+  if ! "$CLANG" -std=c11 $OPT $DET $ISA -I"$ROOT/mucore" \
         -S -emit-llvm -o "$IR" "$CORE" 2>"$TMP/err"; then
-    bad "$OPT could not be compiled to IR"; continue
+    bad "$OPT could not be compiled to IR"
+    sed 's/^/            /' "$TMP/err" | head -4
+    continue
   fi
 
   probs=""

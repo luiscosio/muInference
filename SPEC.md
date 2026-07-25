@@ -35,6 +35,14 @@ divides by zero, or fails to terminate.
 `--unwinding-assertions` makes an insufficient bound a hard failure, so no
 result here is a silent under-approximation.
 
+One substitution is made under CBMC only, and it is load-bearing: `mu_sqrtf`
+normally uses inline assembly (`fsqrt` on AArch64, `sqrtss` on x86-64), and CBMC
+does not model inline asm — it silently treats the block as having no effect,
+which would make any result about a function using sqrt meaningless. Under
+`__CPROVER__` the function calls `sqrtf`, which CBMC models as the IEEE-754
+square root, exactly what the assembly computes. The shipping build is unchanged
+and S3a independently confirms it links no libm.
+
 **Proven** (`mucore/tests/cbmc_units.c`, 3023–3099 checks each, all discharged):
 
 | Function | Symbolic over | Result |

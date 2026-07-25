@@ -33,7 +33,20 @@
  * Emitted as a single hardware instruction on every target we support. */
 static inline float mu_sqrtf(float x)
 {
-#if defined(__aarch64__)
+#if defined(__CPROVER__)
+    /* CBMC does not model inline assembly. Left as-is, it silently treats the
+     * asm block as having no effect, which would make any verification result
+     * about a function using sqrt meaningless. So under CBMC only, call sqrtf,
+     * which CBMC models as the IEEE-754 square root -- exactly what the
+     * assembly below computes. Both are the correctly-rounded operation clause
+     * 5.4.1 mandates, so the substitution is sound.
+     *
+     * Declared rather than included to avoid pulling in all of <math.h>. This
+     * introduces no libm dependency in the shipping build, which S3a checks
+     * independently. */
+    float sqrtf(float);
+    return sqrtf(x);
+#elif defined(__aarch64__)
     float r;
     __asm__("fsqrt %s0, %s1" : "=w"(r) : "w"(x));
     return r;

@@ -47,9 +47,14 @@ else
     n=$(echo "$out" | grep -oE '\*\* [0-9]+ of [0-9]+' | grep -oE '[0-9]+$')
     if echo "$out" | grep -q "VERIFICATION SUCCESSFUL"; then
       ok "$(printf '%-9s all %s checks discharged' "$h" "${n:-?}")"
-    else
+    elif echo "$out" | grep -q "VERIFICATION FAILED"; then
       bad "$h"
       echo "$out" | grep FAILURE | head -4 | sed 's/^/            /'
+    else
+      # No verdict at all means cbmc could not process the file, which is a
+      # different problem from a property being violated. Show the reason.
+      bad "$h  (cbmc did not produce a verdict)"
+      echo "$out" | grep -iE "error|cannot|unsupported" | head -4 | sed 's/^/            /'
     fi
   done
 fi
