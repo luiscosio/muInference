@@ -23,7 +23,7 @@ DotError.vo: DotError.v
 # two axioms Rocq's classical reals are built on and nothing else -- no
 # Admitted, no assumptions of our own.
 check: DotError.vo
-	@printf 'From Stdlib Require Import Reals.\nRequire Import DotError.\n' > axioms_probe.v
+	@printf 'Require Import Reals.\nRequire Import DotError.\n' > axioms_probe.v
 	@printf 'Print Assumptions DotError.dot_error_loop_from_zero.\n' >> axioms_probe.v
 	@$(COQC) $(COQFLAGS) -Q . "" axioms_probe.v 2>&1 | grep -vE 'deprecated|^Use |^for compat|^\[dep'
 	@rm -f axioms_probe.v axioms_probe.vo axioms_probe.glob axioms_probe.vos axioms_probe.vok

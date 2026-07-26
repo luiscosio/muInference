@@ -102,14 +102,22 @@ if ! command -v coqc >/dev/null 2>&1; then
   skp "rocq not installed (brew install coq)"
 else
   if (cd "$ROOT/proofs" && make -s >/dev/null 2>&1); then
-    ax=$( (cd "$ROOT/proofs" && make -s check 2>/dev/null) | grep -cE "^(ClassicalDedekindReals|FunctionalExtensionality)")
-    other=$( (cd "$ROOT/proofs" && make -s check 2>/dev/null) \
-             | grep -E "^[A-Za-z]" | grep -vcE "^(Axioms:|ClassicalDedekindReals|FunctionalExtensionality|forall)")
-    if [ "$ax" -eq 2 ] && [ "$other" -eq 0 ]; then
-      ok "dot_error_loop_from_zero proved; only the 2 classical-reals axioms"
+    axout=$( (cd "$ROOT/proofs" && make -s check 2>&1) )
+    if ! echo "$axout" | grep -q "^Axioms:"; then
+      # The probe itself did not run. That is a toolchain problem, not an
+      # axiom problem, and saying so saves a CI round trip.
+      bad "axiom check could not run"
+      echo "$axout" | grep -iE "error|cannot" | head -3 | sed 's/^/            /'
     else
-      bad "proof compiled but depends on unexpected axioms"
-      (cd "$ROOT/proofs" && make -s check 2>/dev/null) | head -6 | sed 's/^/            /'
+      ax=$(echo "$axout" | grep -cE "^(ClassicalDedekindReals|FunctionalExtensionality)")
+      other=$(echo "$axout" | grep -E "^[A-Za-z]" \
+              | grep -vcE "^(Axioms:|ClassicalDedekindReals|FunctionalExtensionality|forall)")
+      if [ "$ax" -eq 2 ] && [ "$other" -eq 0 ]; then
+        ok "dot_error_loop_from_zero proved; only the 2 classical-reals axioms"
+      else
+        bad "proof depends on unexpected axioms"
+        echo "$axout" | head -8 | sed 's/^/            /'
+      fi
     fi
   else
     bad "proofs/ did not compile"
