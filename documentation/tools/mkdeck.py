@@ -337,8 +337,10 @@ cols = [
                     "Proved: no memory errors (6 of 8)",
                     "Proved: the exp error bound",
                     "Proved: only exact maths used",
+                    "Proved: the dot product bound",
                     "All of it checked in CI"]),
     ("NEXT — MONTHS", AMBER, ["Prove reproducibility (CompCert)",
+                              "Total error for one token",
                               "Cover the last two functions",
                               "Run on real hardware",
                               "Test a larger model"]),
@@ -395,7 +397,7 @@ specs = [
     ("S4a", "The exp function is within a known error", "exhaustive", "DONE   all 2^32 inputs", CYAN),
     ("S1", "No memory errors, for any input", "CBMC", "6 of 8 functions", AMBER),
     ("S3b", "Output depends only on the inputs", "CompCert", "open", VIOLET),
-    ("S4b", "The matrix multiply error bound", "LAProof", "open", VIOLET),
+    ("S4b", "The dot product error bound", "Rocq proof", "DONE   no axioms added", CYAN),
     ("S4c", "The total error for one token", "combine S4a, S4b", "open", AMBER),
     ("S5", "It computes a transformer correctly", "Coq", "not scheduled", RED),
 ]
@@ -409,7 +411,7 @@ for tag, prop, tool, mode, col in specs:
     y += Inches(0.56)
 
 text(s, Inches(0.85), Inches(6.55), Inches(11.6), Inches(0.3),
-     "9 of 9 checks pass. None of it needed a hand-written proof.", size=13.5, color=CYAN, bold=True)
+     "10 of 10 checks pass. Four of the eight parts are done.", size=13.5, color=CYAN, bold=True)
 footer(s, 12)
 
 # ---- 13 plan ---------------------------------------------------------
@@ -419,9 +421,9 @@ phases = [
     ("1", "Prove no memory errors (S1, S2)", "done", "S2 complete, S1 6 of 8", CYAN),
     ("2", "Add the maths-operations check (S3a)", "done", "runs at 5 opt levels", CYAN),
     ("3", "Prove the exp error bound (S4a)", "done", "all 2^32 inputs, 3.4 s", CYAN),
-    ("4", "Build with CompCert (S3b)", "2-4 weeks", "REPRODUCIBILITY PROVEN", VIOLET),
-    ("5", "Cover the last two functions (S1)", "weeks", "needs Frama-C", AMBER),
-    ("6", "Matrix multiply bound (S4b)", "1-2 months", "needs LAProof", AMBER),
+    ("4", "Dot product error bound (S4b)", "done", "Rocq, no added axioms", CYAN),
+    ("5", "Build with CompCert (S3b)", "2-4 weeks", "REPRODUCIBILITY PROVEN", VIOLET),
+    ("6", "Total error for one token (S4c)", "weeks", "combine S4a and S4b", AMBER),
     ("7", "Full correctness (S5)", "research", "not scheduled", RED),
 ]
 y = Inches(1.95)
@@ -436,12 +438,12 @@ for n, what, effort, earns, col in phases:
 
 panel(s, Inches(0.85), Inches(6.45), Inches(11.6), Inches(0.5), fill=PANEL2, edge=CYAN)
 text(s, Inches(1.15), Inches(6.6), Inches(11.1), Inches(0.3),
-     "Steps 0 to 3 are finished. They took one session, not two months.", size=13.5, color=CYAN)
+     "Steps 0 to 4 are finished, including a hand-written Rocq proof.", size=13.5, color=CYAN)
 footer(s, 13)
 
 # ---- 14 constraint ---------------------------------------------------
-s = slide(); title(s, "AI cannot write the proofs yet",
-                   "Measured by VERINA. Best model tested was o3, writing Lean.")
+s = slide(); title(s, "What the benchmark does and does not say",
+                   "VERINA measures one-shot proof writing on unseen problems. That is not this task.")
 bars = [("Writing code", 72.6, CYAN), ("Writing the spec", 52.3, AMBER), ("Writing the proof", 4.9, RED)]
 y = Inches(2.2)
 for name, pct, col in bars:
@@ -452,22 +454,23 @@ for name, pct, col in bars:
          f"{pct}%", size=16, bold=True, color=col, font=MONO)
     y += Inches(0.85)
 
-panel(s, Inches(0.85), Inches(4.85), Inches(5.6), Inches(1.5), fill=PANEL2, edge=RED)
-text(s, Inches(1.15), Inches(5.05), Inches(5.0), Inches(0.35), "So do not plan on it", size=14, bold=True, color=RED)
-text(s, Inches(1.15), Inches(5.48), Inches(5.0), Inches(0.8),
-     "A 5% success rate cannot be the main path.", size=13, line=1.3)
+panel(s, Inches(0.85), Inches(4.85), Inches(5.6), Inches(1.6), fill=PANEL2, edge=AMBER)
+text(s, Inches(1.15), Inches(5.05), Inches(5.0), Inches(0.35), "Why the number is low", size=14, bold=True, color=AMBER)
+text(s, Inches(1.15), Inches(5.48), Inches(5.0), Inches(0.9),
+     "One attempt. Unseen problem. No compiler feedback. No choice of how to "
+     "state the theorem.", size=13, line=1.3)
 
-panel(s, Inches(6.85), Inches(4.85), Inches(5.6), Inches(1.5), fill=PANEL2, edge=CYAN)
-text(s, Inches(7.15), Inches(5.05), Inches(5.0), Inches(0.35), "What the plan does", size=14, bold=True, color=CYAN)
-text(s, Inches(7.15), Inches(5.48), Inches(5.0), Inches(0.8),
-     "Use tools that prove things automatically. Only about 100 lines need real proof work.",
-     size=13, line=1.3)
+panel(s, Inches(6.85), Inches(4.85), Inches(5.6), Inches(1.6), fill=PANEL2, edge=CYAN)
+text(s, Inches(7.15), Inches(5.05), Inches(5.0), Inches(0.35), "S4b was written anyway", size=14, bold=True, color=CYAN)
+text(s, Inches(7.15), Inches(5.48), Inches(5.0), Inches(0.9),
+     "Rocq proof, no added axioms. Took about eight compile-and-fix rounds, and "
+     "it caught a real error in the bound.", size=13, line=1.3)
 footer(s, 14)
 
 # ---- 15 next ---------------------------------------------------------
 s = slide(); title(s, "Next steps", "")
 asks = [
-    ("1", "Approve step 4: CompCert", "Two to four weeks. Turns reproducibility from something "
+    ("1", "Approve step 5: CompCert", "Two to four weeks. Turns reproducibility from something "
      "tested on 7 systems into something proven for all of them. This is the publishable one.", CYAN),
     ("2", "Decide whether to do S5", "Full correctness needs a reference transformer written in Coq. "
      "That is a large project on its own. Suggestion: leave it out for now.", AMBER),

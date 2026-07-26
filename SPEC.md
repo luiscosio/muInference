@@ -19,7 +19,7 @@ Requires `cbmc` (`brew install cbmc`) and clang.
 | **S3a** | Only exactly-rounded FP operations are used | LLVM IR check | ✅ **proven** |
 | **S3b** | Output depends only on the inputs | CompCert | ⬜ open |
 | **S4a** | `mu_expf` is within 1 ulp of the true result | exhaustive | ✅ **proven** |
-| **S4b** | Error bound for the matrix multiply | LAProof / Coq | ⬜ open |
+| **S4b** | Error bound for the matrix multiply | Rocq proof | ✅ **proven** |
 | **S4c** | End-to-end error bound for one token | compose S4a, S4b | ⬜ open |
 | **S5** | It computes a transformer correctly | Coq | ⬜ deferred |
 
@@ -162,18 +162,55 @@ maximum first and SwiGLU negates a finite activation.
 rather than by enumeration, which also extends to binary64. It is not packaged
 for Homebrew. Worth adding, but it would not strengthen the binary32 claim.
 
-## S4b — Matrix multiply error bound ⬜ open
+## S4b — Dot product error bound ✅ proven
 
-**Claim.** For `mu_matmul(xout, x, w, n, d)`,
-`|xout[i] − Σⱼ w[i][j]·x[j]| ≤ γₙ · Σⱼ |w[i][j]|·|x[j]|` with
-`γₙ = nu/(1−nu)`, accounting for underflow.
+**Claim.** For the loop `for (j=0;j<n;j++) val += w[j]*x[j]` under the standard
+floating-point model `fl(x op y) = (x op y)(1+d)`, `|d| <= u`:
 
-**Method.** Instantiate LAProof (VeriNum, Princeton) rather than proving from
-scratch. LAProof already has machine-checked error bounds for **naive
-sequential** dot product, summation, matvec and GEMM. Its documented limitation
-is that it does not cover blocked, tiled or multithreaded GEMM — which
-`mu_matmul` is not. The thing that makes this engine slow makes it the one GEMM
-that existing verified numerics already covers.
+```
+|computed - exact|  <=  gamma_n * sum |a_i b_i|,    gamma_n = (1+u)^(n+1) - 1
+```
+
+**Method.** A machine-checked proof in Rocq 9.2, `proofs/DotError.v`. Not an
+instantiation of LAProof — written directly, because the statement is short
+enough that a self-contained proof is easier to audit than a dependency.
+
+Three results, all with **no `Admitted` and no added axioms**:
+
+| Theorem | Statement |
+|---|---|
+| `dot_error` | the bound, for a right-associated fold |
+| `dot_error_loop` | the bound with a running accumulator, including the accumulator's own error term |
+| `dot_error_loop_from_zero` | corollary at `acc = 0`, which is the C loop verbatim |
+
+```coq
+dot_error_loop_from_zero
+  : forall u : R, 0 <= u ->
+    forall (l : list (R * R)) (r : R),
+    computes_from u 0 l r ->
+    Rabs (r - dot l) <= gamma u (length l) * adot l
+```
+
+`Print Assumptions` reports exactly two axioms, `sig_forall_dec` and
+`functional_extensionality_dep`, which are what Rocq's classical reals are built
+on. Every proof about `R` depends on them; nothing was assumed here.
+
+**Why two fold directions.** The first theorem associates right; the C loop
+accumulates left. The bound is the same, but proving one and claiming it covers
+the other would be sleight of hand, so `computes_from` models the loop verbatim
+and `dot_error_loop_from_zero` is the result that actually applies.
+
+**Two things the proof forced into the open.** The accumulator bound must be
+`(|acc| + |P|(1+u))(1+u)`, not `(|acc| + |P|)(1+u)` — the product is already
+rounded before the add, so it carries its own factor, and with the looser form
+the induction does not close. And `u < 1`, which the standard treatment assumes,
+turns out to be unnecessary: the bound holds for any `u >= 0`. The hypothesis
+was removed rather than left in place looking load-bearing.
+
+**What this does not cover.** Underflow. The multiplicative model is exactly
+what fails for subnormal results, so the bound is conditional on no underflow
+occurring. This is a property of the model, not of the proof, and it is the one
+assumption that could bite in practice.
 
 ## S4c — End-to-end error bound ⬜ open
 

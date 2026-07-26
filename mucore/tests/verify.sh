@@ -95,13 +95,34 @@ else
   bad "could not build the exhaustive checker"
 fi
 
+# ------------------------------------------------------------------- S4b
+echo
+echo "S4b      dot product error bound                  [Rocq, machine-checked proof]"
+if ! command -v coqc >/dev/null 2>&1; then
+  skp "rocq not installed (brew install coq)"
+else
+  if (cd "$ROOT/proofs" && make -s >/dev/null 2>&1); then
+    ax=$( (cd "$ROOT/proofs" && make -s check 2>/dev/null) | grep -cE "^(ClassicalDedekindReals|FunctionalExtensionality)")
+    other=$( (cd "$ROOT/proofs" && make -s check 2>/dev/null) \
+             | grep -E "^[A-Za-z]" | grep -vcE "^(Axioms:|ClassicalDedekindReals|FunctionalExtensionality|forall)")
+    if [ "$ax" -eq 2 ] && [ "$other" -eq 0 ]; then
+      ok "dot_error_loop_from_zero proved; only the 2 classical-reals axioms"
+    else
+      bad "proof compiled but depends on unexpected axioms"
+      (cd "$ROOT/proofs" && make -s check 2>/dev/null) | head -6 | sed 's/^/            /'
+    fi
+  else
+    bad "proofs/ did not compile"
+    (cd "$ROOT/proofs" && make 2>&1 | grep -E "^(File|Error)" | head -4 | sed 's/^/            /')
+  fi
+fi
+
 # --------------------------------------------------------- not yet done
 echo
 echo "Not yet discharged"
 printf '  \033[33m----\033[0m  %s\n' \
   "S1  remaining: mu_forward end to end, mu_tok_encode" \
   "S3b semantic determinism: needs a CompCert build" \
-  "S4b matmul error bound: needs LAProof instantiation in Coq" \
   "S4c end-to-end logit error bound" \
   "S5  functional correctness against a reference transformer"
 

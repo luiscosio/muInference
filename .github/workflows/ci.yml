@@ -83,7 +83,7 @@ jobs:
       - name: Install toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang llvm cbmc
+          sudo apt-get install -y clang llvm cbmc coq
 
       # No model inputs needed: every clause here is about the code, not the
       # weights. S4a enumerates all 2^32 float32 inputs and takes a few seconds.

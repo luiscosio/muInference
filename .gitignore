@@ -10,3 +10,11 @@ model/*.bin
 
 # Vendored Microkit SDK (69 MB, fetched by vendor/microkit/fetch.sh).
 vendor/microkit/microkit-sdk-*/
+
+# Rocq build products.
+proofs/*.vo
+proofs/*.vok
+proofs/*.vos
+proofs/*.glob
+proofs/.*.aux
+proofs/axioms_probe.*

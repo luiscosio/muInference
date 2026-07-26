@@ -170,8 +170,9 @@ run it with `cd mucore && make verify`.
 | S2 | The arena never overruns and blocks never overlap | ✅ proven |
 | S3a | Only exactly-rounded FP operations are used | ✅ proven |
 | S4a | `mu_expf` is within 1 ulp of the true result | ✅ proven, all 2³² inputs |
+| S4b | Error bound for the dot product loop | ✅ proven in Rocq, no added axioms |
 | S1 | No undefined behaviour | 🟡 6 of 8 functions |
-| S3b, S4b, S4c, S5 | see SPEC.md | ⬜ open |
+| S3b, S4c, S5 | see SPEC.md | ⬜ open |
 
 ## What is not proven
 
