@@ -1,8 +1,25 @@
-l2e_boot/linux/
-llama2c/
-l2e_boot/limine/
-l2e_boot/musl/
-l2e_boot/musl_build/
-l2e_boot/busybox/
-l2e_boot/kernel_headers/
-l2e_boot/ISO/
+# Build outputs.
+mucore/build/
+
+# Model inputs are fetched and hash-verified, not committed.
+# See model/fetch.sh and model/SHA256SUMS.
+model/*.bin
+
+# Logits dumps produced by the test suites.
+*.logits
+
+# Vendored Microkit SDK (69 MB, fetched by vendor/microkit/fetch.sh).
+vendor/microkit/microkit-sdk-*/
+
+# Rocq build products.
+proofs/*.vo
+proofs/*.vok
+proofs/*.vos
+proofs/*.glob
+proofs/.*.aux
+proofs/axioms_probe.*
+proofs/.nra.cache
+proofs/.lia.cache
+
+# CompCert is built from source by vendor/compcert/fetch.sh (tens of minutes).
+vendor/compcert/CompCert/

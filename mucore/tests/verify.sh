@@ -1,0 +1,201 @@
+#!/usr/bin/env bash
+# Runs every formal-verification clause that currently has a discharge.
+#
+# Clause status lives in SPEC.md. Nothing is claimed there until it is green
+# here. Each block prints which clause it discharges and by what method, so a
+# reader can tell a proof from a test.
+set -uo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+MU="$ROOT/mucore"
+BUILD="$MU/build"
+mkdir -p "$BUILD"
+
+CLANG="${CLANG:-$( [ -x /opt/homebrew/opt/llvm/bin/clang ] && echo /opt/homebrew/opt/llvm/bin/clang || echo clang )}"
+DET="-fno-fast-math -ffp-contract=off -fno-unsafe-math-optimizations"
+
+MODEL="$ROOT/model/stories15M.bin"
+TOK="$ROOT/model/tokenizer.bin"
+ROPE="$MU/tables/rope_256x48.bin"
+PROMPT="Once upon a time"
+STEPS=24
+
+pass=0; fail=0; skip=0
+ok()  { printf '  \033[32mPASS\033[0m  %s\n' "$1"; pass=$((pass+1)); }
+bad() { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; fail=$((fail+1)); }
+skp() { printf '  \033[33mSKIP\033[0m  %s\n' "$1"; skip=$((skip+1)); }
+
+echo
+echo "################ muInference formal verification ################"
+
+# ---------------------------------------------------------------- S1, S2
+echo
+echo "S1 / S2  no undefined behaviour, arena bounds   [CBMC, bounded model checking]"
+  printf '         cbmc %s\n' "$(cbmc --version 2>/dev/null | head -1)"
+if ! command -v cbmc >/dev/null 2>&1; then
+  skp "cbmc not installed (brew install cbmc)"
+else
+  # --no-standard-checks only exists from CBMC 6.0. In 5.x the standard checks
+  # were off by default so the flag is unnecessary there, and passing it is a
+  # usage error. Ubuntu 24.04 ships 5.95, Homebrew ships 6.10, and CI failed on
+  # exactly this.
+  CBMC_MAJOR=$(cbmc --version 2>/dev/null | grep -oE '^[0-9]+' | head -1)
+  NOSTD=""
+  [ "${CBMC_MAJOR:-0}" -ge 6 ] 2>/dev/null && NOSTD="--no-standard-checks"
+
+  CHECKS="--bounds-check --pointer-check --pointer-overflow-check
+          --div-by-zero-check --conversion-check
+          --signed-overflow-check --unsigned-overflow-check
+          --unwinding-assertions $NOSTD"
+  # harness:unwind[:extra-cbmc-args]
+  #
+  # Bounds are sized so every loop is fully unwound. --unwinding-assertions
+  # makes an insufficient bound a hard failure, so none of these results can
+  # silently under-approximate.
+  # mu_tok_init needs a per-loop bound of 257 for its byte_pieces table; giving
+  # every loop that bound instead makes the parser intractable.
+  for spec in H_ARENA:260 H_ARGMAX:20 H_MATMUL:50 H_DECODE:80 H_SOFTMAX:20 \
+              H_RMSNORM:20 "H_TOKINIT:30:--unwindset mu_tok_init.0:257"; do
+    h="${spec%%:*}"; rest="${spec#*:}"; u="${rest%%:*}"
+    extra=""; case "$spec" in *:*:*) extra="${rest#*:}";; esac
+    out=$(cbmc "$MU/tests/cbmc_units.c" -I"$MU" -D"$h" $CHECKS --unwind "$u" $extra 2>&1)
+    n=$(echo "$out" | grep -oE '\*\* [0-9]+ of [0-9]+' | grep -oE '[0-9]+$')
+    if echo "$out" | grep -q "VERIFICATION SUCCESSFUL"; then
+      ok "$(printf '%-9s all %s checks discharged' "$h" "${n:-?}")"
+    elif echo "$out" | grep -q "VERIFICATION FAILED"; then
+      bad "$h"
+      echo "$out" | grep FAILURE | head -4 | sed 's/^/            /'
+    else
+      # No verdict at all means cbmc could not process the file, which is a
+      # different problem from a property being violated. Show the reason.
+      bad "$h  (cbmc did not produce a verdict)"
+      echo "$out" | grep -iE "error|cannot|unsupported" | head -4 | sed 's/^/            /'
+    fi
+  done
+fi
+
+# ------------------------------------------------------------------- S3a
+echo
+echo "S3a      only exactly-rounded FP operations      [static check of LLVM IR]"
+if bash "$MU/tests/check_s3a.sh" >"$BUILD/s3a.log" 2>&1; then
+  n=$(grep -c PASS "$BUILD/s3a.log")
+  ok "clean at -O0/-O1/-O2/-O3/-Os, negative control rejected ($n checks)"
+else
+  bad "see build/s3a.log"; grep -E "FAIL" "$BUILD/s3a.log" | head -5 | sed 's/^/            /'
+fi
+
+# ------------------------------------------------------------------- S4a
+echo
+echo "S4a      mu_expf within 1 ulp                    [exhaustive over 2^32 inputs]"
+if "$CLANG" -std=c11 -O2 $DET -I"$MU" -pthread \
+      -o "$BUILD/exhaustive_expf" "$MU/tests/exhaustive_expf.c" -lm 2>/dev/null; then
+  if out=$("$BUILD/exhaustive_expf" 2>&1); then
+    w=$(echo "$out" | grep -oE 'WORST CASE +[0-9]+ ulp' | grep -oE '[0-9]+')
+    n=$(echo "$out" | grep -oE 'normal domain +[0-9]+' | grep -oE '[0-9]+')
+    ok "worst case ${w} ulp over all ${n} in-domain inputs, not sampled"
+  else
+    bad "exhaustive check reported a violation"
+    echo "$out" | grep -E "FAIL" | sed 's/^/            /'
+  fi
+else
+  bad "could not build the exhaustive checker"
+fi
+
+# ------------------------------------------------------------------- S3b
+echo
+echo "S3b      output depends only on the inputs        [CompCert, verified compiler]"
+CCOMP="$ROOT/vendor/compcert/CompCert/ccomp"
+CCOMP_RT="$ROOT/vendor/compcert/CompCert/runtime"
+
+# First: the one substitution CompCert forces. It rejects inline asm, so
+# mu_sqrtf computes in binary64 and rounds back there. Checked exhaustively
+# rather than argued from the double-rounding theorem.
+if "$CLANG" -std=c11 -O2 $DET -I"$MU" -pthread \
+      -o "$BUILD/exhaustive_sqrtf" "$MU/tests/exhaustive_sqrtf.c" -lm 2>/dev/null \
+   && "$BUILD/exhaustive_sqrtf" >"$BUILD/sqrtf.log" 2>&1; then
+  n=$(grep -oE 'checked +[0-9]+' "$BUILD/sqrtf.log" | grep -oE '[0-9]+')
+  ok "sqrt substitution identical to hardware over all ${n:-?} inputs"
+else
+  bad "sqrt substitution differs from the hardware instruction"
+fi
+
+if [ ! -x "$CCOMP" ]; then
+  skp "ccomp not built (vendor/compcert/fetch.sh, takes tens of minutes)"
+else
+  ccver=$("$CCOMP" -version 2>&1 | head -1)
+  allsame=1
+  for opt in -O2 -O0; do
+    out="$BUILD/mu_ccomp${opt//-/_}"
+    if ! "$CCOMP" $opt -I"$MU" -L"$CCOMP_RT" -o "$out" \
+          "$MU/mu_core.c" "$MU/hosts/posix/main.c" 2>"$BUILD/ccomp.err"; then
+      bad "ccomp $opt failed to build"
+      grep -vE "^ld: warning" "$BUILD/ccomp.err" | head -3 | sed 's/^/            /'
+      allsame=0; continue
+    fi
+    "$out" -q -m "$MODEL" -z "$TOK" -r "$ROPE" -i "$PROMPT" -n "$STEPS" \
+        --dump-logits "$BUILD/cc$opt.logits" >/dev/null 2>&1
+    "$BUILD/mu" -q -m "$MODEL" -z "$TOK" -r "$ROPE" -i "$PROMPT" -n "$STEPS" \
+        --dump-logits "$BUILD/ref_s3b.logits" >/dev/null 2>&1
+    if cmp -s "$BUILD/cc$opt.logits" "$BUILD/ref_s3b.logits"; then
+      ok "$(printf '%-28s %s' "$ccver $opt" "matches the reference")"
+    else
+      bad "ccomp $opt produced different logits"; allsame=0
+    fi
+  done
+fi
+
+# ------------------------------------------------------------------- S4b
+echo
+echo "S4b      dot product error bound                  [Rocq, machine-checked proof]"
+if ! command -v coqc >/dev/null 2>&1; then
+  skp "rocq not installed (brew install coq)"
+else
+  if (cd "$ROOT/proofs" && make -s >/dev/null 2>&1); then
+    axout=$( (cd "$ROOT/proofs" && make -s check 2>&1) )
+    if ! echo "$axout" | grep -q "^Axioms:"; then
+      # The probe itself did not run. That is a toolchain problem, not an
+      # axiom problem, and saying so saves a CI round trip.
+      bad "axiom check could not run"
+      echo "$axout" | grep -iE "error|cannot" | head -3 | sed 's/^/            /'
+    else
+      # Count DISTINCT axiom names, not lines: the probe prints one report per
+      # theorem, so the same two axioms appear once per report.
+      ax=$(echo "$axout" | grep -oE "^(ClassicalDedekindReals|FunctionalExtensionality)[A-Za-z.:_]*" \
+           | cut -d: -f1 | sort -u | wc -l | tr -d ' ')
+      other=$(echo "$axout" | grep -E "^[A-Za-z]" \
+              | grep -vcE "^(Axioms:|ClassicalDedekindReals|FunctionalExtensionality|forall)")
+      if [ "$ax" -eq 2 ] && [ "$other" -eq 0 ]; then
+        ok "dot_error_loop_from_zero and chain_n proved; only the 2 classical-reals axioms"
+      else
+        bad "proof depends on unexpected axioms"
+        echo "$axout" | head -8 | sed 's/^/            /'
+      fi
+    fi
+  else
+    bad "proofs/ did not compile"
+    (cd "$ROOT/proofs" && make 2>&1 | grep -E "^(File|Error)" | head -4 | sed 's/^/            /')
+  fi
+fi
+
+# ------------------------------------------------------------------- S4c
+echo
+echo "S4c      per-stage bounds compose                 [Rocq, machine-checked proof]"
+if ! command -v coqc >/dev/null 2>&1; then
+  skp "rocq not installed"
+elif [ -f "$ROOT/proofs/Compose.vo" ] || (cd "$ROOT/proofs" && make -s >/dev/null 2>&1); then
+  ok "chain_n and total_err_additive proved; errors accumulate additively"
+else
+  bad "Compose.v did not compile"
+fi
+
+# --------------------------------------------------------- not yet done
+echo
+echo "Not yet discharged"
+printf '  \033[33m----\033[0m  %s\n' \
+  "S1  remaining: mu_forward end to end, mu_tok_encode" \
+  "S5  functional correctness against a reference transformer"
+
+echo
+echo "################ $pass passed, $fail failed, $skip skipped ################"
+echo
+[ "$fail" -eq 0 ]

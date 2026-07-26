@@ -1,1 +1,0 @@
-μInference - Research platform for a micro inference server for SL5.

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  muinference as a single seL4/Microkit protection domain.
+
+  Deliberately minimal. One PD, no channels, no memory_regions, no IRQs, no
+  device mappings. The PD's entire authority is its own address space plus the
+  debug console the SDK's debug configuration provides.
+
+  The model, tokenizer and RoPE table are linked into mu_pd.elf rather than
+  declared as memory regions, so a single hash over the image covers both the
+  code and the weights. That is the property that makes an image measurement
+  worth anything.
+-->
+<system>
+    <protection_domain name="muinference" priority="254">
+        <program_image path="mu_pd.elf" />
+    </protection_domain>
+</system>
