@@ -24,9 +24,13 @@
    underflow occurring. Stated here rather than buried, because it is the one
    assumption that could bite. *)
 
-From Stdlib Require Import Reals.
-From Stdlib Require Import List.
-From Stdlib Require Import Lra.
+(* Plain `Require Import`, not `From Stdlib Require Import`.
+   The Stdlib-prefixed form is Rocq 9.x only; Ubuntu ships Coq 8.18, where it
+   does not resolve. The unprefixed form works in both, at the cost of a
+   deprecation warning on 9.x which the Makefile silences. *)
+Require Import Reals.
+Require Import List.
+Require Import Lra.
 Import ListNotations.
 Open Scope R_scope.
 
