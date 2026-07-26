@@ -100,7 +100,7 @@ text(s, Inches(1.1), Inches(3.5), Inches(11), Inches(0.6),
      "A verifiable minimum inference engine for LLMs", size=24, color=CYAN)
 text(s, Inches(1.1), Inches(4.35), Inches(10), Inches(1.0), [
     ("692 lines of trusted code.", {}),
-    ("Same output on seven different systems, bit for bit.", {}),
+    ("Same output on eight different builds, bit for bit.", {}),
     ("Runs on seL4, a formally verified microkernel.", {}),
 ], size=16, color=MUTED, line=1.35, space_after=4)
 text(s, Inches(1.1), Inches(6.4), Inches(11), Inches(0.3),
@@ -228,7 +228,7 @@ text(s, Inches(1.15), Inches(6.16), Inches(11.1), Inches(0.4),
 footer(s, 5)
 
 # ---- 6 result --------------------------------------------------------
-s = slide(); title(s, "Result: seven systems, one hash",
+s = slide(); title(s, "Result: eight builds, one hash",
                    "Hash of the raw output numbers from every step. 3,072,000 bytes.")
 panel(s, Inches(0.85), Inches(1.95), Inches(11.6), Inches(0.68), fill=PANEL2, edge=CYAN)
 text(s, Inches(1.1), Inches(2.12), Inches(11.1), Inches(0.4),
@@ -288,7 +288,7 @@ footer(s, 7)
 s = slide(); title(s, "Numbers", "All measured.")
 cards = [
     ("692", "lines of engine code", "llama2.c is 973.\nvLLM stack is millions.", CYAN),
-    ("4.13 MB", "memory used", "Same on all seven systems.\nFixed at build time.", VIOLET),
+    ("4.13 MB", "memory used", "Same on all eight builds.\nFixed at build time.", VIOLET),
     ("161 tok/s", "one CPU thread", "Apple Silicon.\nNo BLAS, no SIMD, no threads.", AMBER),
     ("1 ULP", "worst maths error", "Every one of the 2^32\npossible inputs checked.", CYAN),
 ]
@@ -332,7 +332,7 @@ footer(s, 9)
 s = slide(); title(s, "Goals", "")
 cols = [
     ("DONE", CYAN, ["692-line engine, four hosts",
-                    "Same output on seven systems",
+                    "Same output on eight builds",
                     "Runs on seL4",
                     "Proved: no memory errors (6 of 8)",
                     "Proved: the exp error bound",
