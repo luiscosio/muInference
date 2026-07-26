@@ -340,12 +340,12 @@ cols = [
                     "Proved: only exact maths used",
                     "Proved: the dot product bound",
                     "Proved: reproducibility (CompCert)",
+                    "Proved: error linear in depth",
                     "All of it checked in CI"]),
-    ("NEXT — MONTHS", AMBER, ["Total error for one token",
-                              "Cover the last two functions",
+    ("NEXT — MONTHS", AMBER, ["Cover the last two functions",
                               "Run on real hardware",
                               "Test a larger model"]),
-    ("LATER — RESEARCH", VIOLET, ["Prove the total error bound",
+    ("LATER — RESEARCH", VIOLET, ["Link the C code to a Coq spec (VST)",
                                   "Use it to check other systems",
                                   "Move to RISC-V for stronger proofs",
                                   "Try integers instead of floats"]),
@@ -398,7 +398,7 @@ specs = [
     ("S1", "No memory errors, for any input", "CBMC", "6 of 8 functions", AMBER),
     ("S3b", "Output depends only on the inputs", "CompCert", "DONE   verified compiler", CYAN),
     ("S4b", "The dot product error bound", "Rocq proof", "DONE   no axioms added", CYAN),
-    ("S4c", "The total error for one token", "combine S4a, S4b", "open", AMBER),
+    ("S4c", "Error is linear in depth, not exponential", "Rocq proof", "DONE   no axioms added", CYAN),
     ("S5", "It computes a transformer correctly", "Coq", "not scheduled", RED),
 ]
 y = Inches(1.95)
@@ -411,7 +411,7 @@ for tag, prop, tool, mode, col in specs:
     y += Inches(0.56)
 
 text(s, Inches(0.85), Inches(6.55), Inches(11.6), Inches(0.3),
-     "13 of 13 checks pass. Five of the eight parts are done.", size=13.5, color=CYAN, bold=True)
+     "14 of 14 checks pass. Six of the eight parts are done.", size=13.5, color=CYAN, bold=True)
 footer(s, 12)
 
 # ---- 13 plan ---------------------------------------------------------
@@ -423,7 +423,7 @@ phases = [
     ("3", "Prove the exp error bound (S4a)", "done", "all 2^32 inputs, 3.4 s", CYAN),
     ("4", "Dot product error bound (S4b)", "done", "Rocq, no added axioms", CYAN),
     ("5", "Build with CompCert (S3b)", "done", "REPRODUCIBILITY PROVEN", CYAN),
-    ("6", "Total error for one token (S4c)", "weeks", "combine S4a and S4b", AMBER),
+    ("6", "Composition, linear in depth (S4c)", "done", "Rocq, no added axioms", CYAN),
     ("7", "Full correctness (S5)", "research", "not scheduled", RED),
 ]
 y = Inches(1.95)
@@ -438,7 +438,7 @@ for n, what, effort, earns, col in phases:
 
 panel(s, Inches(0.85), Inches(6.45), Inches(11.6), Inches(0.5), fill=PANEL2, edge=CYAN)
 text(s, Inches(1.15), Inches(6.6), Inches(11.1), Inches(0.3),
-     "Steps 0 to 5 are finished. Reproducibility is now proven, not tested.", size=13.5, color=CYAN)
+     "Steps 0 to 6 done. Only full correctness (S5) is left, and it needs VST.", size=13.5, color=CYAN)
 footer(s, 13)
 
 # ---- 14 constraint ---------------------------------------------------

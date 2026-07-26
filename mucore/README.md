@@ -218,8 +218,9 @@ server hardware", which nobody can currently claim.
 `make verify` discharges the clauses in [../SPEC.md](../SPEC.md) that have a
 method: CBMC for memory safety and arena bounds, a static LLVM IR check for
 exactly-rounded arithmetic, an exhaustive enumeration for the `mu_expf` bound,
-and a machine-checked Rocq proof of the dot-product error bound in `../proofs/`.
-10 checks, all passing. What is still open is listed there rather than
+and three machine-checked Rocq proofs in `../proofs/`: the dot-product error
+bound, the composition machinery, and linear growth of error with depth.
+14 checks, all passing. What is still open is listed there rather than
 implied here.
 
 ## What is NOT proven

@@ -173,7 +173,8 @@ run it with `cd mucore && make verify`.
 | S4b | Error bound for the dot product loop | ✅ proven in Rocq, no added axioms |
 | S3b | Output depends only on the inputs | ✅ proven via CompCert, a verified compiler |
 | S1 | No undefined behaviour | 🟡 6 of 8 functions |
-| S4c, S5 | see SPEC.md | ⬜ open |
+| S4c | Error is linear in depth, not exponential | ✅ proven in Rocq |
+| S5 | Functional correctness vs a reference | ⬜ needs VST |
 
 ## What is not proven
 

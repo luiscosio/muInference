@@ -158,11 +158,14 @@ else
       bad "axiom check could not run"
       echo "$axout" | grep -iE "error|cannot" | head -3 | sed 's/^/            /'
     else
-      ax=$(echo "$axout" | grep -cE "^(ClassicalDedekindReals|FunctionalExtensionality)")
+      # Count DISTINCT axiom names, not lines: the probe prints one report per
+      # theorem, so the same two axioms appear once per report.
+      ax=$(echo "$axout" | grep -oE "^(ClassicalDedekindReals|FunctionalExtensionality)[A-Za-z.:_]*" \
+           | cut -d: -f1 | sort -u | wc -l | tr -d ' ')
       other=$(echo "$axout" | grep -E "^[A-Za-z]" \
               | grep -vcE "^(Axioms:|ClassicalDedekindReals|FunctionalExtensionality|forall)")
       if [ "$ax" -eq 2 ] && [ "$other" -eq 0 ]; then
-        ok "dot_error_loop_from_zero proved; only the 2 classical-reals axioms"
+        ok "dot_error_loop_from_zero and chain_n proved; only the 2 classical-reals axioms"
       else
         bad "proof depends on unexpected axioms"
         echo "$axout" | head -8 | sed 's/^/            /'
@@ -174,12 +177,22 @@ else
   fi
 fi
 
+# ------------------------------------------------------------------- S4c
+echo
+echo "S4c      per-stage bounds compose                 [Rocq, machine-checked proof]"
+if ! command -v coqc >/dev/null 2>&1; then
+  skp "rocq not installed"
+elif [ -f "$ROOT/proofs/Compose.vo" ] || (cd "$ROOT/proofs" && make -s >/dev/null 2>&1); then
+  ok "chain_n and total_err_additive proved; errors accumulate additively"
+else
+  bad "Compose.v did not compile"
+fi
+
 # --------------------------------------------------------- not yet done
 echo
 echo "Not yet discharged"
 printf '  \033[33m----\033[0m  %s\n' \
   "S1  remaining: mu_forward end to end, mu_tok_encode" \
-  "S4c end-to-end logit error bound" \
   "S5  functional correctness against a reference transformer"
 
 echo

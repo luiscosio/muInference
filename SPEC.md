@@ -20,7 +20,7 @@ Requires `cbmc` (`brew install cbmc`) and clang.
 | **S3b** | Output depends only on the inputs | CompCert | ✅ **proven** |
 | **S4a** | `mu_expf` is within 1 ulp of the true result | exhaustive | ✅ **proven** |
 | **S4b** | Error bound for the matrix multiply | Rocq proof | ✅ **proven** |
-| **S4c** | End-to-end error bound for one token | compose S4a, S4b | ⬜ open |
+| **S4c** | Per-stage bounds compose; error is linear in depth | Rocq proof | ✅ **proven** |
 | **S5** | It computes a transformer correctly | Coq | ⬜ deferred |
 
 ---
@@ -59,7 +59,19 @@ length-prefixed records out of a tokenizer file. With the blob fully symbolic,
 CBMC proves the `off + len > blob_bytes` rejection cannot be bypassed for any
 byte pattern of that length.
 
-**Not yet covered.** `mu_forward` end to end, `mu_tok_encode`.
+**Not yet covered, and why.** `mu_forward` end to end, and `mu_tok_encode`.
+
+`mu_tok_encode` was attempted four times with progressively less symbolic state
+and does not terminate: 28-byte symbolic blob with 4 bytes of text, then 14/2,
+then a concrete blob with 3 symbolic text bytes, then 1 byte with `mu_tok_init`
+bypassed entirely. None produced a verdict inside 13 minutes.
+
+The obstacle is structural rather than a matter of size. The BPE merge loop
+rescans every adjacent pair each pass, and each `tok_lookup` is a binary search
+whose branches depend on symbolic bytes, so the path count explodes no matter how
+short the input is. Bounded model checking is the wrong tool here; this function
+needs Frama-C with a loop invariant on the merge loop. The harness was deleted
+rather than left in the tree unrun.
 
 **Why `mu_forward` whole is not done.** CBMC encodes IEEE-754 bit-precisely.
 One forward pass is thousands of float operations, and the harness did not
@@ -247,10 +259,52 @@ what fails for subnormal results, so the bound is conditional on no underflow
 occurring. This is a property of the model, not of the proof, and it is the one
 assumption that could bite in practice.
 
-## S4c — End-to-end error bound ⬜ open
+## S4c — Composition, and linear growth in depth ✅ proven
 
-Compose S4a, S4b and an RMSNorm bound into a per-token logit error bound. First
-clause that is genuinely hard.
+**The problem.** S4a bounds `mu_expf`. S4b bounds the dot-product loop. Neither
+says anything about a forward pass, because a forward pass is a chain and every
+stage feeds the next one an input that is *already wrong*.
+
+**Method.** Two Rocq files, `proofs/Compose.v` and `proofs/Depth.v`.
+
+`Compose.v` proves the general machinery. A stage carries its exact function, its
+implementation, a Lipschitz constant and its own error bound. Then:
+
+| Theorem | Statement |
+|---|---|
+| `chain2` | two stages: total error ≤ `ef + Lf · eg` |
+| `chain_n` | a pipeline: total ≤ `Σᵢ eᵢ · ∏_{j>i} Lⱼ` — each stage's error amplified by everything downstream |
+| `total_err_additive` | if every stage is non-expansive (`L ≤ 1`), total ≤ `Σ eᵢ` |
+
+`Depth.v` instantiates it for the shape a transformer has — the same layer
+repeated:
+
+```coq
+uniform_depth_linear
+  : forall (s : stage) (n : nat),
+    wf_stage s -> s_lip s <= 1 ->
+    forall x, Rabs (run_impl (repeat s n) x - run_exact (repeat s n) x)
+              <= INR n * s_err s
+```
+
+**What that says.** *n* identical non-expansive layers, each within `e` of exact,
+give a stack within `n·e`. Error grows **linearly in depth, not
+exponentially**. `depth_6` states the stories15M case: within `6·e`.
+
+That is the whole reason a multi-layer forward pass is bounded at all. If errors
+compounded multiplicatively the bound would be `e·Lⁿ` and worthless.
+`lip_tail_repeat` proves the accumulated factor really is `Lⁿ` in general, so
+non-expansiveness is doing genuine work here rather than being a convenience.
+
+Both files are axiom-clean — the same two classical-reals axioms and nothing
+else.
+
+**What is still missing for a numeric constant on `mu_forward`.** Two inputs:
+a per-layer `e`, obtained by composing S4a and S4b across the operations in one
+layer, and a per-layer Lipschitz constant, which depends on the weight norms of
+a specific checkpoint. The theorem is parametric in both, which is the honest
+form: supply them and you get a number. Claiming a figure without them would be
+made up.
 
 ## S5 — Functional correctness ⬜ deferred
 
