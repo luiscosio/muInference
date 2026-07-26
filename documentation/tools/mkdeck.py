@@ -290,7 +290,7 @@ cards = [
     ("692", "lines of engine code", "llama2.c is 973.\nvLLM stack is millions.", CYAN),
     ("4.13 MB", "memory used", "Same on all seven systems.\nFixed at build time.", VIOLET),
     ("161 tok/s", "one CPU thread", "Apple Silicon.\nNo BLAS, no SIMD, no threads.", AMBER),
-    ("1 ULP", "worst maths error", "Compared against libm\nat 16 million points.", CYAN),
+    ("1 ULP", "worst maths error", "Every one of the 2^32\npossible inputs checked.", CYAN),
 ]
 x = Inches(0.85)
 for big, mid, small, col in cards:
@@ -334,11 +334,12 @@ cols = [
     ("DONE", CYAN, ["692-line engine, four hosts",
                     "Same output on seven systems",
                     "Runs on seL4",
-                    "Tests pass in CI",
-                    "Matches llama2.c output"]),
-    ("NEXT — MONTHS", AMBER, ["Prove there are no memory errors",
-                              "Prove the maths error bound",
-                              "Check reproducibility automatically",
+                    "Proved: no memory errors (6 of 8)",
+                    "Proved: the exp error bound",
+                    "Proved: only exact maths used",
+                    "All of it checked in CI"]),
+    ("NEXT — MONTHS", AMBER, ["Prove reproducibility (CompCert)",
+                              "Cover the last two functions",
                               "Run on real hardware",
                               "Test a larger model"]),
     ("LATER — RESEARCH", VIOLET, ["Prove reproducibility as a theorem",
@@ -358,20 +359,20 @@ footer(s, 10)
 
 # ---- 11 status vs goal ----------------------------------------------
 s = slide(); title(s, "Testing is not proving",
-                   "Tests check some inputs. A proof covers all of them.")
+                   "Tests check some inputs. A proof covers all of them. Both are now in use.")
 panel(s, Inches(0.85), Inches(2.05), Inches(5.6), Inches(1.9), edge=AMBER)
-text(s, Inches(1.15), Inches(2.28), Inches(5.0), Inches(0.35), "NOW", size=13, bold=True, color=AMBER)
+text(s, Inches(1.15), Inches(2.28), Inches(5.0), Inches(0.35), "STILL TESTED ONLY", size=13, bold=True, color=AMBER)
 text(s, Inches(1.15), Inches(2.72), Inches(5.0), Inches(1.1), [
-    ("7 systems, 1 prompt, 24 steps.", {"font": MONO, "size": 13}),
-    ("A good sample.", {}),
-    ("Still only a sample.", {"color": AMBER}),
+    ("Reproducibility: 7 systems, 1 prompt.", {"font": MONO, "size": 12.5}),
+    ("A good sample. Still a sample.", {}),
+    ("CompCert would make it a proof.", {"color": AMBER}),
 ], size=13.5, line=1.3, space_after=8)
 
 panel(s, Inches(6.85), Inches(2.05), Inches(5.6), Inches(1.9), edge=CYAN)
-text(s, Inches(7.15), Inches(2.28), Inches(5.0), Inches(0.35), "GOAL", size=13, bold=True, color=CYAN)
+text(s, Inches(7.15), Inches(2.28), Inches(5.0), Inches(0.35), "ALREADY PROVEN", size=13, bold=True, color=CYAN)
 text(s, Inches(7.15), Inches(2.72), Inches(5.0), Inches(1.1), [
-    ("All inputs. All correct systems.", {"font": MONO, "size": 13}),
-    ("Checked by machine, once.", {}),
+    ("Memory safety. The exp bound.", {"font": MONO, "size": 12.5}),
+    ("Checked by machine, all inputs.", {}),
     ("Covers inputs never run.", {"color": CYAN}),
 ], size=13.5, line=1.3, space_after=8)
 
@@ -386,17 +387,17 @@ text(s, Inches(1.2), Inches(4.92), Inches(11), Inches(1.2), [
 footer(s, 11)
 
 # ---- 12 spec ---------------------------------------------------------
-s = slide(); title(s, "What to prove",
-                   "Five parts, cheapest first. Each one is a separate, checkable claim.")
+s = slide(); title(s, "What to prove, and what is proven",
+                   "Run it with: make verify")
 specs = [
-    ("S1", "No memory errors or crashes, for any input", "Frama-C", "no proof work", CYAN),
-    ("S2", "Memory use never exceeds the fixed limit", "Frama-C", "no proof work", CYAN),
-    ("S3a", "Only the exact maths operations are used", "clang plugin", "no proof work", CYAN),
-    ("S3b", "Output depends only on the inputs", "CompCert", "no proof work", VIOLET),
-    ("S4a", "The exp function is within a known error", "Gappa", "proof generated", VIOLET),
-    ("S4b", "The matrix multiply error bound", "LAProof", "some proof work", AMBER),
-    ("S4c", "The total error for one token", "combine S4a, S4b", "proof work", AMBER),
-    ("S5", "It computes a transformer correctly", "Coq", "large project", RED),
+    ("S2", "Memory limit is never exceeded", "CBMC", "DONE   3099 checks", CYAN),
+    ("S3a", "Only the exact maths operations are used", "LLVM IR check", "DONE   5 opt levels", CYAN),
+    ("S4a", "The exp function is within a known error", "exhaustive", "DONE   all 2^32 inputs", CYAN),
+    ("S1", "No memory errors, for any input", "CBMC", "6 of 8 functions", AMBER),
+    ("S3b", "Output depends only on the inputs", "CompCert", "open", VIOLET),
+    ("S4b", "The matrix multiply error bound", "LAProof", "open", VIOLET),
+    ("S4c", "The total error for one token", "combine S4a, S4b", "open", AMBER),
+    ("S5", "It computes a transformer correctly", "Coq", "not scheduled", RED),
 ]
 y = Inches(1.95)
 for tag, prop, tool, mode, col in specs:
@@ -408,20 +409,20 @@ for tag, prop, tool, mode, col in specs:
     y += Inches(0.56)
 
 text(s, Inches(0.85), Inches(6.55), Inches(11.6), Inches(0.3),
-     "S1 to S4a need no hand-written proofs. Tools do the work.", size=13.5, color=CYAN, bold=True)
+     "9 of 9 checks pass. None of it needed a hand-written proof.", size=13.5, color=CYAN, bold=True)
 footer(s, 12)
 
 # ---- 13 plan ---------------------------------------------------------
 s = slide(); title(s, "Plan", "Each step is a separate piece of work with its own test in CI.")
 phases = [
-    ("0", "Run CBMC to look for crashes", "3 days", "find problems early", CYAN),
-    ("1", "Prove no memory errors (S1, S2)", "3-6 weeks", "no crashes, any input", CYAN),
-    ("2", "Add the maths-operations check (S3a)", "1 week", "checked automatically", CYAN),
-    ("3", "Prove the exp error bound (S4a)", "2-4 weeks", "known maths error", VIOLET),
-    ("4", "Prove the matrix multiply bound (S4b)", "1-2 months", "known matmul error", AMBER),
-    ("5", "Build with CompCert (S3b)", "2-4 weeks", "reproducibility proven", VIOLET),
-    ("6", "Combine the error bounds (S4c)", "months", "total error known", AMBER),
-    ("7", "Prove full correctness (S5)", "research", "not scheduled", RED),
+    ("0", "Run CBMC to look for crashes", "done", "no problems found", CYAN),
+    ("1", "Prove no memory errors (S1, S2)", "done", "S2 complete, S1 6 of 8", CYAN),
+    ("2", "Add the maths-operations check (S3a)", "done", "runs at 5 opt levels", CYAN),
+    ("3", "Prove the exp error bound (S4a)", "done", "all 2^32 inputs, 3.4 s", CYAN),
+    ("4", "Build with CompCert (S3b)", "2-4 weeks", "REPRODUCIBILITY PROVEN", VIOLET),
+    ("5", "Cover the last two functions (S1)", "weeks", "needs Frama-C", AMBER),
+    ("6", "Matrix multiply bound (S4b)", "1-2 months", "needs LAProof", AMBER),
+    ("7", "Full correctness (S5)", "research", "not scheduled", RED),
 ]
 y = Inches(1.95)
 for n, what, effort, earns, col in phases:
@@ -435,7 +436,7 @@ for n, what, effort, earns, col in phases:
 
 panel(s, Inches(0.85), Inches(6.45), Inches(11.6), Inches(0.5), fill=PANEL2, edge=CYAN)
 text(s, Inches(1.15), Inches(6.6), Inches(11.1), Inches(0.3),
-     "Steps 0 to 3 take about two months and use existing tools.", size=13.5, color=CYAN)
+     "Steps 0 to 3 are finished. They took one session, not two months.", size=13.5, color=CYAN)
 footer(s, 13)
 
 # ---- 14 constraint ---------------------------------------------------
@@ -466,8 +467,8 @@ footer(s, 14)
 # ---- 15 next ---------------------------------------------------------
 s = slide(); title(s, "Next steps", "")
 asks = [
-    ("1", "Approve steps 0 to 3", "About two months. Existing tools. No hand-written proofs. "
-     "Result: no memory errors, and a known maths error bound.", CYAN),
+    ("1", "Approve step 4: CompCert", "Two to four weeks. Turns reproducibility from something "
+     "tested on 7 systems into something proven for all of them. This is the publishable one.", CYAN),
     ("2", "Decide whether to do S5", "Full correctness needs a reference transformer written in Coq. "
      "That is a large project on its own. Suggestion: leave it out for now.", AMBER),
     ("3", "Contact Theorem Labs", "A research lab working on AI for formal verification. $6M funding. "
