@@ -24,4 +24,4 @@ check: DotError.vo
 	@rm -f axioms_probe.v axioms_probe.vo axioms_probe.glob axioms_probe.vos axioms_probe.vok
 
 clean:
-	rm -f *.vo *.vok *.vos *.glob .*.aux axioms_probe.*
+	rm -f *.vo *.vok *.vos *.glob .*.aux .nra.cache .lia.cache axioms_probe.*

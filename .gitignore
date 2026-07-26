@@ -18,3 +18,5 @@ proofs/*.vos
 proofs/*.glob
 proofs/.*.aux
 proofs/axioms_probe.*
+proofs/.nra.cache
+proofs/.lia.cache
