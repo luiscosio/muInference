@@ -100,7 +100,7 @@ text(s, Inches(1.1), Inches(3.5), Inches(11), Inches(0.6),
      "A verifiable minimum inference engine for LLMs", size=24, color=CYAN)
 text(s, Inches(1.1), Inches(4.35), Inches(10), Inches(1.0), [
     ("692 lines of trusted code.", {}),
-    ("Same output on eight different builds, bit for bit.", {}),
+    ("Same output on nine different builds, bit for bit.", {}),
     ("Runs on seL4, a formally verified microkernel.", {}),
 ], size=16, color=MUTED, line=1.35, space_after=4)
 text(s, Inches(1.1), Inches(6.4), Inches(11), Inches(0.3),
@@ -228,7 +228,7 @@ text(s, Inches(1.15), Inches(6.16), Inches(11.1), Inches(0.4),
 footer(s, 5)
 
 # ---- 6 result --------------------------------------------------------
-s = slide(); title(s, "Result: eight builds, one hash",
+s = slide(); title(s, "Result: nine builds, one hash",
                    "Hash of the raw output numbers from every step. 3,072,000 bytes.")
 panel(s, Inches(0.85), Inches(1.95), Inches(11.6), Inches(0.68), fill=PANEL2, edge=CYAN)
 text(s, Inches(1.1), Inches(2.12), Inches(11.1), Inches(0.4),
@@ -239,19 +239,20 @@ envs = [
     ("clang 21, -O0", "macOS", "different optimisation level", MUTED),
     ("clang 22, -O2", "macOS", "different compiler version", MUTED),
     ("GCC 16, -O2", "macOS", "different compiler", VIOLET),
+    ("CompCert 3.17", "macOS", "FORMALLY VERIFIED compiler", CYAN),
     ("clang 18, -O2", "Linux", "different OS and CPU (CI)", VIOLET),
     ("ARM, no OS", "QEMU", "no C library at all", VIOLET),
     ("Intel, no OS", "QEMU", "different CPU maths implementation", CYAN),
     ("seL4 / Microkit", "QEMU", "the target system", CYAN),
 ]
-y = Inches(2.82)
+y = Inches(2.76)
 for name, plat, note, col in envs:
-    panel(s, Inches(0.85), y, Inches(11.6), Inches(0.44))
-    text(s, Inches(1.1), y + Inches(0.09), Inches(0.3), Inches(0.3), "✓", size=13, bold=True, color=CYAN)
-    text(s, Inches(1.5), y + Inches(0.09), Inches(3.3), Inches(0.3), name, size=13)
-    text(s, Inches(4.9), y + Inches(0.09), Inches(1.4), Inches(0.3), plat, size=12, font=MONO, color=MUTED)
-    text(s, Inches(6.5), y + Inches(0.09), Inches(5.8), Inches(0.3), note, size=12, color=col)
-    y += Inches(0.5)
+    panel(s, Inches(0.85), y, Inches(11.6), Inches(0.40))
+    text(s, Inches(1.1), y + Inches(0.07), Inches(0.3), Inches(0.3), "✓", size=13, bold=True, color=CYAN)
+    text(s, Inches(1.5), y + Inches(0.07), Inches(3.3), Inches(0.3), name, size=12.5)
+    text(s, Inches(4.9), y + Inches(0.07), Inches(1.4), Inches(0.3), plat, size=11.5, font=MONO, color=MUTED)
+    text(s, Inches(6.5), y + Inches(0.07), Inches(5.8), Inches(0.3), note, size=11.5, color=col)
+    y += Inches(0.455)
 footer(s, 6)
 
 # ---- 7 negative control ---------------------------------------------
@@ -288,7 +289,7 @@ footer(s, 7)
 s = slide(); title(s, "Numbers", "All measured.")
 cards = [
     ("692", "lines of engine code", "llama2.c is 973.\nvLLM stack is millions.", CYAN),
-    ("4.13 MB", "memory used", "Same on all eight builds.\nFixed at build time.", VIOLET),
+    ("4.13 MB", "memory used", "Same on all nine builds.\nFixed at build time.", VIOLET),
     ("161 tok/s", "one CPU thread", "Apple Silicon.\nNo BLAS, no SIMD, no threads.", AMBER),
     ("1 ULP", "worst maths error", "Every one of the 2^32\npossible inputs checked.", CYAN),
 ]
@@ -332,20 +333,19 @@ footer(s, 9)
 s = slide(); title(s, "Goals", "")
 cols = [
     ("DONE", CYAN, ["692-line engine, four hosts",
-                    "Same output on eight builds",
+                    "Same output on nine builds",
                     "Runs on seL4",
                     "Proved: no memory errors (6 of 8)",
                     "Proved: the exp error bound",
                     "Proved: only exact maths used",
                     "Proved: the dot product bound",
+                    "Proved: reproducibility (CompCert)",
                     "All of it checked in CI"]),
-    ("NEXT — MONTHS", AMBER, ["Prove reproducibility (CompCert)",
-                              "Total error for one token",
+    ("NEXT — MONTHS", AMBER, ["Total error for one token",
                               "Cover the last two functions",
                               "Run on real hardware",
                               "Test a larger model"]),
-    ("LATER — RESEARCH", VIOLET, ["Prove reproducibility as a theorem",
-                                  "Prove the total error bound",
+    ("LATER — RESEARCH", VIOLET, ["Prove the total error bound",
                                   "Use it to check other systems",
                                   "Move to RISC-V for stronger proofs",
                                   "Try integers instead of floats"]),
@@ -361,20 +361,20 @@ footer(s, 10)
 
 # ---- 11 status vs goal ----------------------------------------------
 s = slide(); title(s, "Testing is not proving",
-                   "Tests check some inputs. A proof covers all of them. Both are now in use.")
+                   "Tests check some inputs. A proof covers all of them.")
 panel(s, Inches(0.85), Inches(2.05), Inches(5.6), Inches(1.9), edge=AMBER)
 text(s, Inches(1.15), Inches(2.28), Inches(5.0), Inches(0.35), "STILL TESTED ONLY", size=13, bold=True, color=AMBER)
 text(s, Inches(1.15), Inches(2.72), Inches(5.0), Inches(1.1), [
-    ("Reproducibility: 7 systems, 1 prompt.", {"font": MONO, "size": 12.5}),
-    ("A good sample. Still a sample.", {}),
-    ("CompCert would make it a proof.", {"color": AMBER}),
+    ("Real hardware. Larger models.", {"font": MONO, "size": 12.5}),
+    ("One checkpoint, one prompt.", {}),
+    ("The total error bound (S4c).", {"color": AMBER}),
 ], size=13.5, line=1.3, space_after=8)
 
 panel(s, Inches(6.85), Inches(2.05), Inches(5.6), Inches(1.9), edge=CYAN)
 text(s, Inches(7.15), Inches(2.28), Inches(5.0), Inches(0.35), "ALREADY PROVEN", size=13, bold=True, color=CYAN)
 text(s, Inches(7.15), Inches(2.72), Inches(5.0), Inches(1.1), [
-    ("Memory safety. The exp bound.", {"font": MONO, "size": 12.5}),
-    ("Checked by machine, all inputs.", {}),
+    ("Memory safety. Both error bounds.", {"font": MONO, "size": 12.5}),
+    ("Reproducibility, via CompCert.", {}),
     ("Covers inputs never run.", {"color": CYAN}),
 ], size=13.5, line=1.3, space_after=8)
 
@@ -396,7 +396,7 @@ specs = [
     ("S3a", "Only the exact maths operations are used", "LLVM IR check", "DONE   5 opt levels", CYAN),
     ("S4a", "The exp function is within a known error", "exhaustive", "DONE   all 2^32 inputs", CYAN),
     ("S1", "No memory errors, for any input", "CBMC", "6 of 8 functions", AMBER),
-    ("S3b", "Output depends only on the inputs", "CompCert", "open", VIOLET),
+    ("S3b", "Output depends only on the inputs", "CompCert", "DONE   verified compiler", CYAN),
     ("S4b", "The dot product error bound", "Rocq proof", "DONE   no axioms added", CYAN),
     ("S4c", "The total error for one token", "combine S4a, S4b", "open", AMBER),
     ("S5", "It computes a transformer correctly", "Coq", "not scheduled", RED),
@@ -411,7 +411,7 @@ for tag, prop, tool, mode, col in specs:
     y += Inches(0.56)
 
 text(s, Inches(0.85), Inches(6.55), Inches(11.6), Inches(0.3),
-     "10 of 10 checks pass. Four of the eight parts are done.", size=13.5, color=CYAN, bold=True)
+     "13 of 13 checks pass. Five of the eight parts are done.", size=13.5, color=CYAN, bold=True)
 footer(s, 12)
 
 # ---- 13 plan ---------------------------------------------------------
@@ -422,7 +422,7 @@ phases = [
     ("2", "Add the maths-operations check (S3a)", "done", "runs at 5 opt levels", CYAN),
     ("3", "Prove the exp error bound (S4a)", "done", "all 2^32 inputs, 3.4 s", CYAN),
     ("4", "Dot product error bound (S4b)", "done", "Rocq, no added axioms", CYAN),
-    ("5", "Build with CompCert (S3b)", "2-4 weeks", "REPRODUCIBILITY PROVEN", VIOLET),
+    ("5", "Build with CompCert (S3b)", "done", "REPRODUCIBILITY PROVEN", CYAN),
     ("6", "Total error for one token (S4c)", "weeks", "combine S4a and S4b", AMBER),
     ("7", "Full correctness (S5)", "research", "not scheduled", RED),
 ]
@@ -438,7 +438,7 @@ for n, what, effort, earns, col in phases:
 
 panel(s, Inches(0.85), Inches(6.45), Inches(11.6), Inches(0.5), fill=PANEL2, edge=CYAN)
 text(s, Inches(1.15), Inches(6.6), Inches(11.1), Inches(0.3),
-     "Steps 0 to 4 are finished, including a hand-written Rocq proof.", size=13.5, color=CYAN)
+     "Steps 0 to 5 are finished. Reproducibility is now proven, not tested.", size=13.5, color=CYAN)
 footer(s, 13)
 
 # ---- 14 constraint ---------------------------------------------------
@@ -470,8 +470,8 @@ footer(s, 14)
 # ---- 15 next ---------------------------------------------------------
 s = slide(); title(s, "Next steps", "")
 asks = [
-    ("1", "Approve step 5: CompCert", "Two to four weeks. Turns reproducibility from something "
-     "tested on 7 systems into something proven for all of them. This is the publishable one.", CYAN),
+    ("1", "Write it up", "Five of eight parts are proven, including reproducibility via a "
+     "verified compiler. No inference engine has this. That is a paper.", CYAN),
     ("2", "Decide whether to do S5", "Full correctness needs a reference transformer written in Coq. "
      "That is a large project on its own. Suggestion: leave it out for now.", AMBER),
     ("3", "Contact Theorem Labs", "A research lab working on AI for formal verification. $6M funding. "

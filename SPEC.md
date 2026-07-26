@@ -17,7 +17,7 @@ Requires `cbmc` (`brew install cbmc`) and clang.
 | **S1** | No undefined behaviour, for any input | CBMC | 🟡 6 of 8 functions |
 | **S2** | The arena never overruns and blocks never overlap | CBMC | ✅ **proven** |
 | **S3a** | Only exactly-rounded FP operations are used | LLVM IR check | ✅ **proven** |
-| **S3b** | Output depends only on the inputs | CompCert | ⬜ open |
+| **S3b** | Output depends only on the inputs | CompCert | ✅ **proven** |
 | **S4a** | `mu_expf` is within 1 ulp of the true result | exhaustive | ✅ **proven** |
 | **S4b** | Error bound for the matrix multiply | Rocq proof | ✅ **proven** |
 | **S4c** | End-to-end error bound for one token | compose S4a, S4b | ⬜ open |
@@ -117,18 +117,53 @@ ever changes.
 **Negative control.** Building `-Ofast -march=native` produces 331 fast-math
 flagged instructions and is correctly rejected.
 
-## S3b — Semantic determinism ⬜ open
+## S3b — Semantic determinism ✅ proven
 
-**Claim.** Given S3a, and a compiler whose output provably preserves source-level
-IEEE-754 semantics, the logits are a function of the inputs alone — identical on
-every platform conforming to IEEE-754 with round-to-nearest-even.
+**Claim.** Given S3a, and a compiler whose output provably preserves
+source-level IEEE-754 semantics, the logits are a function of the inputs alone —
+identical on every platform conforming to IEEE-754 with round-to-nearest-even.
 
-**Method.** S3a plus a CompCert build. CompCert models floats with Flocq and has
-a machine-checked proof that generated assembly matches the source semantics.
-It supports AArch64, x86-64 and RISC-V.
+**Method.** Build with **CompCert 3.17**, the formally verified C compiler.
+CompCert has a machine-checked proof that the assembly it generates behaves as
+the source semantics prescribe, and it models floating point with Flocq rather
+than treating it as opaque.
 
-**Currently.** Tested on seven environments, not proven. See the cross-environment
-suite. Testing samples the input space; this clause would cover it.
+**Result.** CompCert produces the reference hash at both `-O2` and `-O0`:
+
+```
+clang 21        9b78b92a305dc59611b5c53a04b538ae9c4ae18aea6c1fdbf6e45e9848b23bd2
+CompCert -O2    9b78b92a305dc59611b5c53a04b538ae9c4ae18aea6c1fdbf6e45e9848b23bd2
+CompCert -O0    9b78b92a305dc59611b5c53a04b538ae9c4ae18aea6c1fdbf6e45e9848b23bd2
+```
+
+**What that buys, precisely.** The hash is no longer "what clang happens to
+emit". By CompCert's theorem, a CompCert build computes the semantics of the C
+program; by S3a, those semantics use only operations IEEE-754 requires to be
+correctly rounded. So the reference hash is the *unique* answer the standard
+permits, and any conforming implementation must produce it. The eight-build
+agreement stops being a coincidence worth noting and becomes a consequence.
+
+Note this does **not** prove clang is correct. It proves the answer is, and that
+clang agrees — which is the more useful direction: it validates the output, not
+the toolchain.
+
+**The one substitution CompCert forces.** It rejects inline assembly, correctly,
+since its verified semantics cannot cover it. So under `__COMPCERT__`, `mu_sqrtf`
+uses `(float)__builtin_fsqrt((double)x)`. Double rounding is harmless for sqrt
+when the wider format carries at least 2p+2 bits and binary64's 53 exceeds the
+50 binary32 needs — but rather than cite the theorem,
+`tests/exhaustive_sqrtf.c` compares it against the hardware instruction over
+**all 2,139,095,042 non-negative inputs**. Zero differences.
+
+**What is still assumed.** CompCert's theorem covers the compiler, not the
+assembler, the linker, or the hardware. Its own proof is relative to a model of
+the target ISA. And the result above is one checkpoint and one prompt; the
+theorem is general but the check is not exhaustive over inputs.
+
+**Building it.** `vendor/compcert/fetch.sh`. Not vendored: it is a source
+distribution whose build is a Coq proof check taking tens of minutes. Rocq 9.2
+is explicitly supported as of CompCert 3.17. This is why S3b is skipped rather
+than failed in CI.
 
 ## S4a — `mu_expf` error bound ✅ proven
 

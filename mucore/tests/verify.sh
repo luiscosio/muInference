@@ -14,6 +14,12 @@ mkdir -p "$BUILD"
 CLANG="${CLANG:-$( [ -x /opt/homebrew/opt/llvm/bin/clang ] && echo /opt/homebrew/opt/llvm/bin/clang || echo clang )}"
 DET="-fno-fast-math -ffp-contract=off -fno-unsafe-math-optimizations"
 
+MODEL="$ROOT/model/stories15M.bin"
+TOK="$ROOT/model/tokenizer.bin"
+ROPE="$MU/tables/rope_256x48.bin"
+PROMPT="Once upon a time"
+STEPS=24
+
 pass=0; fail=0; skip=0
 ok()  { printf '  \033[32mPASS\033[0m  %s\n' "$1"; pass=$((pass+1)); }
 bad() { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; fail=$((fail+1)); }
@@ -95,6 +101,49 @@ else
   bad "could not build the exhaustive checker"
 fi
 
+# ------------------------------------------------------------------- S3b
+echo
+echo "S3b      output depends only on the inputs        [CompCert, verified compiler]"
+CCOMP="$ROOT/vendor/compcert/CompCert/ccomp"
+CCOMP_RT="$ROOT/vendor/compcert/CompCert/runtime"
+
+# First: the one substitution CompCert forces. It rejects inline asm, so
+# mu_sqrtf computes in binary64 and rounds back there. Checked exhaustively
+# rather than argued from the double-rounding theorem.
+if "$CLANG" -std=c11 -O2 $DET -I"$MU" -pthread \
+      -o "$BUILD/exhaustive_sqrtf" "$MU/tests/exhaustive_sqrtf.c" -lm 2>/dev/null \
+   && "$BUILD/exhaustive_sqrtf" >"$BUILD/sqrtf.log" 2>&1; then
+  n=$(grep -oE 'checked +[0-9]+' "$BUILD/sqrtf.log" | grep -oE '[0-9]+')
+  ok "sqrt substitution identical to hardware over all ${n:-?} inputs"
+else
+  bad "sqrt substitution differs from the hardware instruction"
+fi
+
+if [ ! -x "$CCOMP" ]; then
+  skp "ccomp not built (vendor/compcert/fetch.sh, takes tens of minutes)"
+else
+  ccver=$("$CCOMP" -version 2>&1 | head -1)
+  allsame=1
+  for opt in -O2 -O0; do
+    out="$BUILD/mu_ccomp${opt//-/_}"
+    if ! "$CCOMP" $opt -I"$MU" -L"$CCOMP_RT" -o "$out" \
+          "$MU/mu_core.c" "$MU/hosts/posix/main.c" 2>"$BUILD/ccomp.err"; then
+      bad "ccomp $opt failed to build"
+      grep -vE "^ld: warning" "$BUILD/ccomp.err" | head -3 | sed 's/^/            /'
+      allsame=0; continue
+    fi
+    "$out" -q -m "$MODEL" -z "$TOK" -r "$ROPE" -i "$PROMPT" -n "$STEPS" \
+        --dump-logits "$BUILD/cc$opt.logits" >/dev/null 2>&1
+    "$BUILD/mu" -q -m "$MODEL" -z "$TOK" -r "$ROPE" -i "$PROMPT" -n "$STEPS" \
+        --dump-logits "$BUILD/ref_s3b.logits" >/dev/null 2>&1
+    if cmp -s "$BUILD/cc$opt.logits" "$BUILD/ref_s3b.logits"; then
+      ok "$(printf '%-28s %s' "$ccver $opt" "matches the reference")"
+    else
+      bad "ccomp $opt produced different logits"; allsame=0
+    fi
+  done
+fi
+
 # ------------------------------------------------------------------- S4b
 echo
 echo "S4b      dot product error bound                  [Rocq, machine-checked proof]"
@@ -130,7 +179,6 @@ echo
 echo "Not yet discharged"
 printf '  \033[33m----\033[0m  %s\n' \
   "S1  remaining: mu_forward end to end, mu_tok_encode" \
-  "S3b semantic determinism: needs a CompCert build" \
   "S4c end-to-end logit error bound" \
   "S5  functional correctness against a reference transformer"
 

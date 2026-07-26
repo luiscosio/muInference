@@ -6,13 +6,16 @@
 # depend on the toolchain, the C library, the linker, the instruction set, the
 # floating point *implementation*, the operating system, or the kernel.
 #
-# Seven environments, one mu_core.c, byte for byte:
+# Eight environments, one mu_core.c, byte for byte:
 #
 #   1. hosted, default compiler, -O2                          (the reference)
 #   2. hosted, same compiler, -O0
 #   3. hosted, a second clang of a different major version
 #   4. hosted, GCC. A genuinely independent compiler: clang-vs-clang shares a
 #      frontend, an optimiser and a backend, clang-vs-gcc shares none of them.
+#   5. hosted, CompCert. A FORMALLY VERIFIED compiler, so its agreement makes
+#      the reference hash the semantics of the program rather than one
+#      optimiser's output.
 #   5. aarch64-none-elf freestanding, no libc, ld.lld, QEMU cortex-a57,
 #      own MMU setup, blobs linked into the image, semihosting I/O
 #   6. x86-64 freestanding, no libc, ld.lld, QEMU Nehalem. Different LLVM
@@ -92,6 +95,19 @@ else skp "hosted second clang -O2" "no second clang"; fi
 if [[ -x "$BUILD/mu_altcc" ]]; then
   emit "$BUILD/mu_altcc" "$TMP/altcc.logits"; check "hosted gcc -O2" "$TMP/altcc.logits"
 else skp "hosted gcc -O2" "gcc absent"; fi
+
+# --- CompCert: the formally verified compiler --------------------------
+# The strongest row here. CompCert has a machine-checked proof that its output
+# preserves the source semantics, floats included. If it agrees, the reference
+# hash is what the C program MEANS, not what one optimiser chose to emit.
+CCOMP="$ROOT/vendor/compcert/CompCert/ccomp"
+if [[ -x "$CCOMP" ]]; then
+  [[ -x "$BUILD/mu_ccomp" ]] || "$CCOMP" -O2 -I"$ROOT/mucore" \
+      -L"$ROOT/vendor/compcert/CompCert/runtime" -o "$BUILD/mu_ccomp" \
+      "$ROOT/mucore/mu_core.c" "$ROOT/mucore/hosts/posix/main.c" 2>/dev/null
+  emit "$BUILD/mu_ccomp" "$TMP/ccomp.logits"
+  check "hosted CompCert -O2 (verified)" "$TMP/ccomp.logits"
+else skp "hosted CompCert -O2 (verified)" "ccomp not built"; fi
 
 # --- 4: aarch64 bare metal --------------------------------------------
 check "baremetal aarch64 (qemu)" "$BUILD/bm/bm.logits"

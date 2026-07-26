@@ -19,7 +19,7 @@ to it on 5/5 test prompts.
 
 ## Verifiability
 
-One `mu_core.c`. Seven environments. Same logits, to the bit.
+One `mu_core.c`. Nine builds. Same logits, to the bit.
 
 The fingerprint is SHA-256 over the raw float32 logits of every decode step
 (3,072,000 bytes: 24 steps × 32000 vocab × 4), hashed by `shasum` rather than by
@@ -171,8 +171,9 @@ run it with `cd mucore && make verify`.
 | S3a | Only exactly-rounded FP operations are used | ✅ proven |
 | S4a | `mu_expf` is within 1 ulp of the true result | ✅ proven, all 2³² inputs |
 | S4b | Error bound for the dot product loop | ✅ proven in Rocq, no added axioms |
+| S3b | Output depends only on the inputs | ✅ proven via CompCert, a verified compiler |
 | S1 | No undefined behaviour | 🟡 6 of 8 functions |
-| S3b, S4c, S5 | see SPEC.md | ⬜ open |
+| S4c, S5 | see SPEC.md | ⬜ open |
 
 ## What is not proven
 

@@ -33,7 +33,19 @@
  * Emitted as a single hardware instruction on every target we support. */
 static inline float mu_sqrtf(float x)
 {
-#if defined(__CPROVER__)
+#if defined(__COMPCERT__)
+    /* CompCert rejects inline asm, correctly: its verified semantics cannot
+     * cover it. __builtin_fsqrt is a verified binary64 square root, so compute
+     * in binary64 and round back.
+     *
+     * That is not a compromise. Double rounding is harmless for sqrt when the
+     * wider format has at least 2p+2 bits, and binary64's 53 exceeds the 50
+     * that binary32 needs, so (float)sqrt((double)x) IS the correctly-rounded
+     * binary32 result. tests/exhaustive_sqrtf.c checks this against the
+     * hardware instruction over all 2^32 inputs rather than taking the theorem
+     * on trust. */
+    return (float)__builtin_fsqrt((double)x);
+#elif defined(__CPROVER__)
     /* CBMC does not model inline assembly. Left as-is, it silently treats the
      * asm block as having no effect, which would make any verification result
      * about a function using sqrt meaningless. So under CBMC only, call sqrtf,

@@ -47,7 +47,7 @@ TOKENIZER := $(ROOT)/model/tokenizer.bin
 ROPE      := $(ROOT)/mucore/tables/rope_256x48.bin
 
 .PHONY: all clean rope verify-rope test test-determinism test-parity ref variants \
-        verify verify-s1 verify-s3a verify-s4a
+        verify verify-s1 verify-s3a verify-s3b verify-s4a verify-s4b ccomp
 
 all: $(BUILD)/mu
 
@@ -156,6 +156,34 @@ $(BUILD)/exhaustive_expf: $(ROOT)/mucore/tests/exhaustive_expf.c $(ROOT)/mucore/
 
 verify-s4a: $(BUILD)/exhaustive_expf
 	@$(BUILD)/exhaustive_expf
+
+# --- S3b: build with CompCert, the formally verified compiler ---------------
+# CompCert's correctness theorem says the generated assembly preserves the
+# source semantics, floats included (it models them with Flocq). So if a
+# CompCert build produces the reference logits, that hash is not an artefact of
+# clang's optimiser: it is what the C program means.
+#
+# Built by ../vendor/compcert/fetch.sh, not vendored -- the build is a Coq proof
+# check taking tens of minutes.
+CCOMP     := $(ROOT)/vendor/compcert/CompCert/ccomp
+CCOMP_RT  := $(ROOT)/vendor/compcert/CompCert/runtime
+
+$(BUILD)/mu_ccomp: $(CORE) $(HOST) | $(BUILD)
+	$(CCOMP) -O2 -I$(ROOT)/mucore -L$(CCOMP_RT) -o $@ $(CORE) $(HOST)
+
+$(BUILD)/mu_ccomp_o0: $(CORE) $(HOST) | $(BUILD)
+	$(CCOMP) -O0 -I$(ROOT)/mucore -L$(CCOMP_RT) -o $@ $(CORE) $(HOST)
+
+ccomp: $(BUILD)/mu_ccomp $(BUILD)/mu_ccomp_o0
+
+# CompCert cannot compile inline asm, so mu_sqrtf uses (float)sqrt((double)x)
+# there. Exhaustively checked to be the same bit pattern as the hardware
+# instruction for every input.
+$(BUILD)/exhaustive_sqrtf: $(ROOT)/mucore/tests/exhaustive_sqrtf.c | $(BUILD)
+	$(CC) -std=c11 -O2 $(DETFLAGS) -I$(ROOT)/mucore -pthread -o $@ $< -lm
+
+verify-s3b: $(BUILD)/exhaustive_sqrtf
+	@$(BUILD)/exhaustive_sqrtf
 
 # ---------------------------------------------------------------------------
 # Stage B: freestanding aarch64 bare metal, run under QEMU.

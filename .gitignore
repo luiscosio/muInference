@@ -20,3 +20,6 @@ proofs/.*.aux
 proofs/axioms_probe.*
 proofs/.nra.cache
 proofs/.lia.cache
+
+# CompCert is built from source by vendor/compcert/fetch.sh (tens of minutes).
+vendor/compcert/CompCert/
